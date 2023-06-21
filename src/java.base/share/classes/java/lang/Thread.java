@@ -44,9 +44,9 @@ import java.util.Map;
 import java.util.HashMap;
 import java.util.Objects;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.StructureViolationException;
 import java.util.concurrent.locks.LockSupport;
 import jdk.internal.event.ThreadSleepEvent;
-import jdk.internal.misc.StructureViolationExceptions;
 import jdk.internal.misc.TerminatingThreadLocal;
 import jdk.internal.misc.Unsafe;
 import jdk.internal.misc.VM;
@@ -328,7 +328,7 @@ public class Thread implements Runnable {
             // bindings established for running/calling an operation
             Object bindings = snapshot.scopedValueBindings();
             if (currentThread().scopedValueBindings != bindings) {
-                StructureViolationExceptions.throwException("Scoped value bindings have changed");
+                throw new StructureViolationException("Scoped value bindings have changed");
             }
 
             this.scopedValueBindings = bindings;
@@ -513,15 +513,11 @@ public class Thread implements Runnable {
             if (currentThread() instanceof VirtualThread vthread) {
                 vthread.sleepNanos(nanos);
             } else {
-                sleep0(millis);
+                sleepImpl(millis, 0);
             }
         } finally {
             afterSleep(event);
         }
-    }
-
-    private static void sleep0(long millis) throws InterruptedException {
-        sleepImpl(millis, 0);
     }
 
     private static native void sleepImpl(long millis, int nanos);
@@ -566,11 +562,7 @@ public class Thread implements Runnable {
             if (currentThread() instanceof VirtualThread vthread) {
                 vthread.sleepNanos(totalNanos);
             } else {
-                // millisecond precision
-                if (nanos > 0 && millis < Long.MAX_VALUE) {
-                    millis++;
-                }
-                sleep0(millis);
+                sleepImpl(millis, nanos);
             }
         } finally {
             afterSleep(event);
@@ -604,12 +596,7 @@ public class Thread implements Runnable {
             if (currentThread() instanceof VirtualThread vthread) {
                 vthread.sleepNanos(nanos);
             } else {
-                // millisecond precision
-                long millis = NANOSECONDS.toMillis(nanos);
-                if (nanos > MILLISECONDS.toNanos(millis)) {
-                    millis += 1L;
-                }
-                sleep0(millis);
+                sleepImpl(nanos / 1_000_000L, (int)(nanos % 1_000_000L));
             }
         } finally {
             afterSleep(event);
