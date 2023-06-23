@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -19,32 +19,35 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
- *
- */
-
-package gc.stress.gcold;
-
-/*
- * @test TestGCOldWithZGenerational
- * @key randomness
- * @library / /test/lib
- * @requires vm.gc.ZGenerational
- * @summary Stress the Z
- * @run main/othervm -Xmx384M -XX:+UseZGC -XX:+ZGenerational gc.stress.gcold.TestGCOldWithZ 50 1 20 10 10000
- * @run main/othervm -Xmx256m -XX:+UseZGC -XX:+ZGenerational gc.stress.gcold.TestGCOldWithZ 50 5 20 1 5000
  */
 
 /*
- * @test TestGCOldWithZSinglegen
- * @key randomness
- * @library / /test/lib
- * @requires vm.gc.ZSinglegen
- * @summary Stress the Z
- * @run main/othervm -Xmx384M -XX:+UseZGC -XX:-ZGenerational gc.stress.gcold.TestGCOldWithZ 50 1 20 10 10000
- * @run main/othervm -Xmx256m -XX:+UseZGC -XX:-ZGenerational gc.stress.gcold.TestGCOldWithZ 50 5 20 1 5000
+ * @test
+ * @bug 8309266
+ * @summary Integer overflow in LoopLimit::Value during PhaseCCP::analyze, triggered by the Phi Node from "flag ? Integer.MAX_VALUE : 1000"
+ * @run main/othervm -Xbatch -XX:CompileOnly=compiler.loopopts.TestLoopLimitOverflowDuringCCP::* compiler.loopopts.TestLoopLimitOverflowDuringCCP
  */
-public class TestGCOldWithZ {
-    public static void main(String[] args) {
-        TestGCOld.main(args);
+
+package compiler.loopopts;
+
+public class TestLoopLimitOverflowDuringCCP {
+    static boolean flag;
+
+    public static void main(String[] strArr) {
+        for (int i = 0; i < 10000; i++) {
+            flag = !flag;
+            test();
+        }
+    }
+
+    public static void test() {
+        int limit = flag ? Integer.MAX_VALUE : 1000;
+        int i = 0;
+        while (i < limit) {
+            i += 3;
+            if (flag) {
+                return;
+            }
+        }
     }
 }
