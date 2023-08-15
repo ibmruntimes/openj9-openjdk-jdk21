@@ -88,6 +88,10 @@ public class ReferencedKeyTest {
 
     static void collect() {
         System.gc();
+        System.gc();
+        System.runFinalization();
+        System.gc();
+        System.gc();
         sleep();
     }
 
