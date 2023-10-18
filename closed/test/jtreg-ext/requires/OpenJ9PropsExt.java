@@ -41,7 +41,7 @@ public class OpenJ9PropsExt implements Callable<Map<String, String>> {
             map.put("vm.cds", "false");
             map.put("vm.cds.write.archived.java.heap", "false");
             map.put("vm.compiler2.enabled", "false");
-            map.put("vm.continuations", "false");
+            map.put("vm.continuations", "true");
             map.put("vm.debug", "false");
             map.put("vm.flagless", "true");
             map.put("vm.gc.G1", "false");
@@ -56,7 +56,7 @@ public class OpenJ9PropsExt implements Callable<Map<String, String>> {
             map.put("vm.jvmti", "true");
             map.put("vm.musl", "false");
             map.put("vm.openj9", "true");
-            map.put("vm.opt.final.ClassUnloading", "false");
+            map.put("vm.opt.final.ClassUnloading", "true");
             map.put("vm.opt.final.ZGenerational", "false");
         }
         catch (Exception e) {

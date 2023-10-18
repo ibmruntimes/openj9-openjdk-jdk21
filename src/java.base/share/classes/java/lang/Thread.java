@@ -25,7 +25,7 @@
 
 /*
  * ===========================================================================
- * (c) Copyright IBM Corp. 2021, 2022 All Rights Reserved
+ * (c) Copyright IBM Corp. 2021, 2023 All Rights Reserved
  * ===========================================================================
  */
 
@@ -1603,7 +1603,7 @@ public class Thread implements Runnable {
      */
     @Hidden
     @ForceInline
-    private void runWith(Object bindings, Runnable op) {
+    final void runWith(Object bindings, Runnable op) {
         ensureMaterializedForStackWalk(bindings);
         op.run();
         Reference.reachabilityFence(bindings);
@@ -3189,6 +3189,9 @@ public class Thread implements Runnable {
             setNameImpl(eetop, "main");
             System.completeInitialization();
         }
+
+        // special value to indicate this is a newly-created Thread
+        this.scopedValueBindings = NEW_THREAD_BINDINGS;
     }
 
     private boolean isDead() {

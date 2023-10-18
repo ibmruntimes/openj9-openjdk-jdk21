@@ -50,6 +50,11 @@
 #define OPENSSL_VERSION_3_0_0 OPENSSL_VERSION_CODE(3, 0, 0, 0)
 #define OPENSSL_VERSION_4_0_0 OPENSSL_VERSION_CODE(4, 0, 0, 0)
 
+/* OpenSSL operation modes. */
+#define OPENSSL_ENCRYPTION_MODE 1
+#define OPENSSL_DECRYPTION_MODE 0
+#define OPENSSL_SAME_MODE (-1)
+
 /* needed for OpenSSL 1.0.2 Thread handling routines */
 #define CRYPTO_LOCK 1
 
@@ -298,6 +303,7 @@ OSSL_PKCS12_key_gen_t* OSSL_PKCS12_key_gen;
 typedef struct OpenSSLMDContext {
     EVP_MD_CTX *ctx;
     const EVP_MD *digestAlg;
+    EVP_MD_CTX *cachedInitializedDigestContext;
 } OpenSSLMDContext;
 
 /* Handle errors from OpenSSL calls. */
@@ -901,22 +907,38 @@ JNIEXPORT jlong JNICALL Java_jdk_crypto_jniprovider_NativeCrypto_DigestCreateCon
     context->ctx = ctx;
     context->digestAlg = digestAlg;
 
+    /*
+     * Create a second initialized openssl digest context. This is being done for performance reasons since
+     * creating and or re-initializing digest contexts later during processing is found to be expensive.
+     * This second context, context->cachedInitializedDigestContext, will be copied over the working context,
+     * context->ctx, using the EVP_MD_CTX_copy_ex API whenever we wish to re-initalize this cipher. This occurs
+     * during an explicit reset of the cipher or whenever a final digest is computed.
+     */
+    context->cachedInitializedDigestContext = (*OSSL_MD_CTX_new)();
+    if (NULL == context->cachedInitializedDigestContext) {
+        goto releaseContexts;
+    }
+
+    if (1 != (*OSSL_MD_CTX_copy_ex)(context->cachedInitializedDigestContext, context->ctx)) {
+        goto releaseContexts;
+    }
+
     if (0 != copyContext) {
         EVP_MD_CTX *contextToCopy = ((OpenSSLMDContext*)(intptr_t)copyContext)->ctx;
         if (NULL == contextToCopy) {
-            (*OSSL_MD_CTX_free)(ctx);
-            free(context);
-            return -1;
+            goto releaseContexts;
         }
         if (0 == (*OSSL_MD_CTX_copy_ex)(ctx, contextToCopy)) {
-            printErrors();
-            (*OSSL_MD_CTX_free)(ctx);
-            free(context);
-            return -1;
+            goto releaseContexts;
         }
     }
 
     return (jlong)(intptr_t)context;
+
+releaseContexts:
+    printErrors();
+    Java_jdk_crypto_jniprovider_NativeCrypto_DigestDestroyContext(env, thisObj, (jlong)(intptr_t)context);
+    return -1;
 }
 
 /*
@@ -928,11 +950,20 @@ JNIEXPORT jint JNICALL Java_jdk_crypto_jniprovider_NativeCrypto_DigestDestroyCon
   (JNIEnv *env, jclass thisObj, jlong c)
 {
     OpenSSLMDContext *context = (OpenSSLMDContext*)(intptr_t) c;
-    if ((NULL == context) || (NULL == context->ctx)) {
+    if (NULL == context) {
         return -1;
     }
 
-    (*OSSL_MD_CTX_free)(context->ctx);
+    if (NULL != context->ctx) {
+        (*OSSL_MD_CTX_free)(context->ctx);
+        context->ctx = NULL;
+    }
+
+    if (NULL != context->cachedInitializedDigestContext) {
+        (*OSSL_MD_CTX_free)(context->cachedInitializedDigestContext);
+        context->cachedInitializedDigestContext = NULL;
+    }
+
     free(context);
     return 0;
 }
@@ -989,7 +1020,7 @@ JNIEXPORT jint JNICALL Java_jdk_crypto_jniprovider_NativeCrypto_DigestComputeAnd
     unsigned char* messageNative = NULL;
     unsigned char* digestNative = NULL;
 
-    if ((NULL == context) || (NULL == context->ctx)) {
+    if ((NULL == context) || (NULL == context->ctx) || (NULL == context->cachedInitializedDigestContext)) {
         return -1;
     }
 
@@ -1021,10 +1052,23 @@ JNIEXPORT jint JNICALL Java_jdk_crypto_jniprovider_NativeCrypto_DigestComputeAnd
 
     (*env)->ReleasePrimitiveArrayCritical(env, digest, digestNative, 0);
 
-    (*OSSL_MD_CTX_reset)(context->ctx);
-
-    if (1 != (*OSSL_DigestInit_ex)(context->ctx, context->digestAlg, NULL)) {
+    /*
+     * Reset the message digest context to the original context. We are then ready to perform
+     * digest operations again using a copy of this cached context.
+     */
+    if (1 != (*OSSL_MD_CTX_copy_ex)(context->ctx, context->cachedInitializedDigestContext)) {
         printErrors();
+
+        if (NULL != context->ctx) {
+            (*OSSL_MD_CTX_free)(context->ctx);
+            context->ctx = NULL;
+        }
+
+        if (NULL != context->cachedInitializedDigestContext) {
+            (*OSSL_MD_CTX_free)(context->cachedInitializedDigestContext);
+            context->cachedInitializedDigestContext = NULL;
+        }
+
         return -1;
     }
 
@@ -1035,22 +1079,38 @@ JNIEXPORT jint JNICALL Java_jdk_crypto_jniprovider_NativeCrypto_DigestComputeAnd
  *
  * Class:     jdk_crypto_jniprovider_NativeCrypto
  * Method:    DigestReset
- * Signature: (J)V
+ * Signature: (J)I
  */
-JNIEXPORT void JNICALL Java_jdk_crypto_jniprovider_NativeCrypto_DigestReset
+JNIEXPORT jint JNICALL Java_jdk_crypto_jniprovider_NativeCrypto_DigestReset
   (JNIEnv *env, jclass thisObj, jlong c)
 {
     OpenSSLMDContext *context = (OpenSSLMDContext*)(intptr_t) c;
 
-    if ((NULL == context) || (NULL == context->ctx)) {
-        return;
+    if ((NULL == context) || (NULL == context->ctx) || (NULL == context->cachedInitializedDigestContext)) {
+        return -1;
     }
 
-    (*OSSL_MD_CTX_reset)(context->ctx);
-
-    if (1 != (*OSSL_DigestInit_ex)(context->ctx, context->digestAlg, NULL)) {
+    /*
+     * Reset the message digest context to the original context. We are then ready to perform
+     * digest operations again using a copy of this cached context.
+     */
+    if (1 != (*OSSL_MD_CTX_copy_ex)(context->ctx, context->cachedInitializedDigestContext)) {
         printErrors();
+
+        if (NULL != context->ctx) {
+            (*OSSL_MD_CTX_free)(context->ctx);
+            context->ctx = NULL;
+        }
+
+        if (NULL != context->cachedInitializedDigestContext) {
+            (*OSSL_MD_CTX_free)(context->cachedInitializedDigestContext);
+            context->cachedInitializedDigestContext = NULL;
+        }
+
+        return -1;
     }
+
+    return 0;
 }
 
 /*
@@ -1097,7 +1157,7 @@ JNIEXPORT jint JNICALL Java_jdk_crypto_jniprovider_NativeCrypto_DestroyContext
  */
 JNIEXPORT jint JNICALL Java_jdk_crypto_jniprovider_NativeCrypto_CBCInit
   (JNIEnv *env, jclass thisObj, jlong c, jint mode, jbyteArray iv, jint iv_len,
-  jbyteArray key, jint key_len)
+  jbyteArray key, jint key_len, jboolean doReset)
 {
     EVP_CIPHER_CTX *ctx = (EVP_CIPHER_CTX*)(intptr_t) c;
     unsigned char* ivNative = NULL;
@@ -1108,18 +1168,20 @@ JNIEXPORT jint JNICALL Java_jdk_crypto_jniprovider_NativeCrypto_CBCInit
         return -1;
     }
 
-    switch(key_len) {
-        case 16:
-            evp_cipher1 = (*OSSL_aes_128_cbc)();
-            break;
-        case 24:
-            evp_cipher1 = (*OSSL_aes_192_cbc)();
-            break;
-        case 32:
-            evp_cipher1 = (*OSSL_aes_256_cbc)();
-            break;
-        default:
-            break;
+    if (JNI_FALSE == doReset) {
+        switch (key_len) {
+            case 16:
+                evp_cipher1 = (*OSSL_aes_128_cbc)();
+                break;
+            case 24:
+                evp_cipher1 = (*OSSL_aes_192_cbc)();
+                break;
+            case 32:
+                evp_cipher1 = (*OSSL_aes_256_cbc)();
+                break;
+            default:
+                break;
+        }
     }
 
     ivNative = (unsigned char*)((*env)->GetByteArrayElements(env, iv, 0));
@@ -1140,7 +1202,9 @@ JNIEXPORT jint JNICALL Java_jdk_crypto_jniprovider_NativeCrypto_CBCInit
         return -1;
     }
 
-    (*OSSL_CIPHER_CTX_set_padding)(ctx, 0);
+    if (JNI_FALSE == doReset) {
+        (*OSSL_CIPHER_CTX_set_padding)(ctx, 0);
+    }
 
     (*env)->ReleaseByteArrayElements(env, iv, (jbyte*)ivNative, JNI_ABORT);
     (*env)->ReleaseByteArrayElements(env, key, (jbyte*)keyNative, JNI_ABORT);
@@ -1253,61 +1317,33 @@ int first_time_gcm = 0;
  *
  * Class:     jdk_crypto_jniprovider_NativeCrypto
  * Method:    GCMEncrypt
- * Signature: ([BI[BI[BII[BI[BII)I
+ * Signature: (J[BI[BI[BII[BI[BIIZZ)I
  */
 JNIEXPORT jint JNICALL Java_jdk_crypto_jniprovider_NativeCrypto_GCMEncrypt
-  (JNIEnv * env, jclass obj, jbyteArray key, jint keyLen, jbyteArray iv, jint ivLen,
+  (JNIEnv * env, jclass obj, jlong context, jbyteArray key, jint keyLen, jbyteArray iv, jint ivLen,
   jbyteArray input, jint inOffset, jint inLen, jbyteArray output, jint outOffset,
-  jbyteArray aad, jint aadLen, jint tagLen)
+  jbyteArray aad, jint aadLen, jint tagLen, jboolean newIVLen, jboolean newKeyLen)
 {
-    unsigned char* inputNative = NULL;
-    int len = 0, len_cipher = 0;
-    unsigned char* keyNative = NULL;
-    unsigned char* ivNative = NULL;
-    unsigned char* outputNative = NULL;
-    unsigned char* aadNative = NULL;
+    jint ret = -1;
 
-    EVP_CIPHER_CTX* ctx = NULL;
-    const EVP_CIPHER* evp_gcm_cipher = NULL;
+    int len = 0;
+    int len_cipher = 0;
+    unsigned char *keyNative = NULL;
+    unsigned char *ivNative = NULL;
+    unsigned char *inputNative = NULL;
+    unsigned char *outputNative = NULL;
+    unsigned char *aadNative = NULL;
 
-    keyNative = (unsigned char*)((*env)->GetPrimitiveArrayCritical(env, key, 0));
-    if (NULL == keyNative) {
-        return -1;
+    EVP_CIPHER_CTX *ctx = (EVP_CIPHER_CTX *)(intptr_t) context;
+    const EVP_CIPHER *evp_gcm_cipher = NULL;
+
+    if (NULL == ctx) {
+        printErrors();
+        goto cleanup;
     }
 
-    ivNative = (unsigned char*)((*env)->GetPrimitiveArrayCritical(env, iv, 0));
-    if (NULL == ivNative) {
-        (*env)->ReleasePrimitiveArrayCritical(env, key, keyNative, JNI_ABORT);
-        return -1;
-    }
-
-    aadNative = (unsigned char*)((*env)->GetPrimitiveArrayCritical(env, aad, 0));
-    if (NULL == aadNative) {
-        (*env)->ReleasePrimitiveArrayCritical(env, key, keyNative, JNI_ABORT);
-        (*env)->ReleasePrimitiveArrayCritical(env, iv, ivNative, JNI_ABORT);
-        return -1;
-    }
-
-    outputNative = (unsigned char*)((*env)->GetPrimitiveArrayCritical(env, output, 0));
-    if (NULL == outputNative) {
-        (*env)->ReleasePrimitiveArrayCritical(env, key, keyNative, JNI_ABORT);
-        (*env)->ReleasePrimitiveArrayCritical(env, iv, ivNative, JNI_ABORT);
-        (*env)->ReleasePrimitiveArrayCritical(env, aad, aadNative, JNI_ABORT);
-        return -1;
-    }
-
-    if (inLen > 0) {
-        inputNative = (unsigned char*)((*env)->GetPrimitiveArrayCritical(env, input, 0));
-        if (NULL == inputNative) {
-            (*env)->ReleasePrimitiveArrayCritical(env, key, keyNative, JNI_ABORT);
-            (*env)->ReleasePrimitiveArrayCritical(env, iv, ivNative, JNI_ABORT);
-            (*env)->ReleasePrimitiveArrayCritical(env, aad, aadNative, JNI_ABORT);
-            (*env)->ReleasePrimitiveArrayCritical(env, output, outputNative, JNI_ABORT);
-            return -1;
-        }
-    }
-
-    switch(keyLen) {
+    if (newKeyLen) {
+        switch (keyLen) {
         case 16:
             evp_gcm_cipher = (*OSSL_aes_128_gcm)();
             break;
@@ -1319,196 +1355,133 @@ JNIEXPORT jint JNICALL Java_jdk_crypto_jniprovider_NativeCrypto_GCMEncrypt
             break;
         default:
             break;
-    }
-
-    ctx = (*OSSL_CIPHER_CTX_new)();
-    if (NULL == ctx) {
-        printErrors();
-        (*env)->ReleasePrimitiveArrayCritical(env, key, keyNative, JNI_ABORT);
-        (*env)->ReleasePrimitiveArrayCritical(env, iv, ivNative, JNI_ABORT);
-        (*env)->ReleasePrimitiveArrayCritical(env, aad, aadNative, JNI_ABORT);
-        (*env)->ReleasePrimitiveArrayCritical(env, output, outputNative, JNI_ABORT);
-        if (inLen > 0) {
-            (*env)->ReleasePrimitiveArrayCritical(env, input, inputNative, JNI_ABORT);
         }
-        return -1;
-    }
 
-    if (1 != (*OSSL_CipherInit_ex)(ctx, evp_gcm_cipher, NULL, NULL, NULL, 1 )) { /* 1 - Encrypt mode 0 Decrypt Mode*/
-        printErrors();
-        (*OSSL_CIPHER_CTX_free)(ctx);
-        (*env)->ReleasePrimitiveArrayCritical(env, key, keyNative, JNI_ABORT);
-        (*env)->ReleasePrimitiveArrayCritical(env, iv, ivNative, JNI_ABORT);
-        (*env)->ReleasePrimitiveArrayCritical(env, aad, aadNative, JNI_ABORT);
-        (*env)->ReleasePrimitiveArrayCritical(env, output, outputNative, JNI_ABORT);
-        if (inLen > 0) {
-            (*env)->ReleasePrimitiveArrayCritical(env, input, inputNative, JNI_ABORT);
+        if (1 != (*OSSL_CipherInit_ex)(ctx, evp_gcm_cipher, NULL, NULL, NULL, OPENSSL_SAME_MODE)) {
+            printErrors();
+            goto cleanup;
         }
-        return -1;
     }
 
-    if (1 != (*OSSL_CIPHER_CTX_ctrl)(ctx, EVP_CTRL_GCM_SET_IVLEN, ivLen, NULL)) {
-        printErrors();
-        (*OSSL_CIPHER_CTX_free)(ctx);
-        (*env)->ReleasePrimitiveArrayCritical(env, key, keyNative, JNI_ABORT);
-        (*env)->ReleasePrimitiveArrayCritical(env, iv, ivNative, JNI_ABORT);
-        (*env)->ReleasePrimitiveArrayCritical(env, aad, aadNative, JNI_ABORT);
-        (*env)->ReleasePrimitiveArrayCritical(env, output, outputNative, JNI_ABORT);
-        if (inLen > 0) {
-            (*env)->ReleasePrimitiveArrayCritical(env, input, inputNative, JNI_ABORT);
+    if (newIVLen) {
+        if (1 != (*OSSL_CIPHER_CTX_ctrl)(ctx, EVP_CTRL_GCM_SET_IVLEN, ivLen, NULL)) {
+            printErrors();
+            goto cleanup;
         }
-        return -1;
     }
 
-    if (1 != (*OSSL_CipherInit_ex)(ctx, NULL, NULL, keyNative, ivNative, -1)) {
+    /* Initialize context with key and IV. */
+    keyNative = (unsigned char *)((*env)->GetPrimitiveArrayCritical(env, key, 0));
+    if (NULL == keyNative) {
+        goto cleanup;
+    }
+
+    ivNative = (unsigned char *)((*env)->GetPrimitiveArrayCritical(env, iv, 0));
+    if (NULL == ivNative) {
+        goto cleanup;
+    }
+
+    if (1 != (*OSSL_CipherInit_ex)(ctx, NULL, NULL, keyNative, ivNative, OPENSSL_ENCRYPTION_MODE)) {
         printErrors();
-        (*OSSL_CIPHER_CTX_free)(ctx);
-        (*env)->ReleasePrimitiveArrayCritical(env, key, keyNative, JNI_ABORT);
-        (*env)->ReleasePrimitiveArrayCritical(env, iv, ivNative, JNI_ABORT);
-        (*env)->ReleasePrimitiveArrayCritical(env, aad, aadNative, JNI_ABORT);
-        (*env)->ReleasePrimitiveArrayCritical(env, output, outputNative, JNI_ABORT);
-        if (inLen > 0) {
-            (*env)->ReleasePrimitiveArrayCritical(env, input, inputNative, JNI_ABORT);
-        }
-        return -1;
+        goto cleanup;
     }
 
-    /* provide AAD */
+    /* Provide AAD. */
+    aadNative = (unsigned char *)((*env)->GetPrimitiveArrayCritical(env, aad, 0));
+    if (NULL == aadNative) {
+        goto cleanup;
+    }
+
     if (1 != (*OSSL_CipherUpdate)(ctx, NULL, &len, aadNative, aadLen)) {
         printErrors();
-        (*OSSL_CIPHER_CTX_free)(ctx);
-        (*env)->ReleasePrimitiveArrayCritical(env, key, keyNative, JNI_ABORT);
-        (*env)->ReleasePrimitiveArrayCritical(env, iv, ivNative, JNI_ABORT);
-        (*env)->ReleasePrimitiveArrayCritical(env, aad, aadNative, JNI_ABORT);
-        (*env)->ReleasePrimitiveArrayCritical(env, output, outputNative, JNI_ABORT);
-        if (inLen > 0) {
-            (*env)->ReleasePrimitiveArrayCritical(env, input, inputNative, JNI_ABORT);
-        }
-        return -1;
+        goto cleanup;
     }
 
-    /* encrypt plaintext and obtain ciphertext */
+    outputNative = (unsigned char *)((*env)->GetPrimitiveArrayCritical(env, output, 0));
+    if (NULL == outputNative) {
+        goto cleanup;
+    }
+
+    /* Encrypt plaintext, if available and obtain ciphertext. */
     if (inLen > 0) {
+        inputNative = (unsigned char *)((*env)->GetPrimitiveArrayCritical(env, input, 0));
+        if (NULL == inputNative) {
+            goto cleanup;
+        }
+
         if (1 != (*OSSL_CipherUpdate)(ctx, outputNative + outOffset, &len, inputNative + inOffset, inLen)) {
             printErrors();
-            (*OSSL_CIPHER_CTX_free)(ctx);
-            (*env)->ReleasePrimitiveArrayCritical(env, key, keyNative, JNI_ABORT);
-            (*env)->ReleasePrimitiveArrayCritical(env, iv, ivNative, JNI_ABORT);
-            (*env)->ReleasePrimitiveArrayCritical(env, aad, aadNative, JNI_ABORT);
-            (*env)->ReleasePrimitiveArrayCritical(env, output, outputNative, JNI_ABORT);
-            if (inLen > 0) {
-                (*env)->ReleasePrimitiveArrayCritical(env, input, inputNative, JNI_ABORT);
-            }
-            return -1;
+            goto cleanup;
         }
         len_cipher = len;
     }
 
-    /* finalize the encryption */
+    /* Finalize the encryption. */
     if (1 != (*OSSL_CipherFinal_ex)(ctx, outputNative + outOffset + len_cipher, &len)) {
         printErrors();
-        (*OSSL_CIPHER_CTX_free)(ctx);
-        (*env)->ReleasePrimitiveArrayCritical(env, key, keyNative, JNI_ABORT);
-        (*env)->ReleasePrimitiveArrayCritical(env, iv, ivNative, JNI_ABORT);
-        (*env)->ReleasePrimitiveArrayCritical(env, aad, aadNative, JNI_ABORT);
-        (*env)->ReleasePrimitiveArrayCritical(env, output, outputNative, JNI_ABORT);
-        if (inLen > 0) {
-            (*env)->ReleasePrimitiveArrayCritical(env, input, inputNative, JNI_ABORT);
-        }
-        return -1;
+        goto cleanup;
     }
+    len_cipher += len;
 
-    /* Get the tag, place it at the end of the cipherText buffer */
-    if (1 != (*OSSL_CIPHER_CTX_ctrl)(ctx, EVP_CTRL_GCM_GET_TAG, tagLen, outputNative + outOffset + len + len_cipher)) {
+    /* Get the tag, place it at the end of the cipherText buffer. */
+    if (1 != (*OSSL_CIPHER_CTX_ctrl)(ctx, EVP_CTRL_GCM_GET_TAG, tagLen, outputNative + outOffset + len_cipher)) {
         printErrors();
-        (*OSSL_CIPHER_CTX_free)(ctx);
-        (*env)->ReleasePrimitiveArrayCritical(env, key, keyNative, JNI_ABORT);
-        (*env)->ReleasePrimitiveArrayCritical(env, iv, ivNative, JNI_ABORT);
-        (*env)->ReleasePrimitiveArrayCritical(env, aad, aadNative, JNI_ABORT);
-        (*env)->ReleasePrimitiveArrayCritical(env, output, outputNative, JNI_ABORT);
-        if (inLen > 0) {
-            (*env)->ReleasePrimitiveArrayCritical(env, input, inputNative, JNI_ABORT);
-        }
-        return -1;
+        goto cleanup;
     }
 
-    (*OSSL_CIPHER_CTX_free)(ctx);
+    ret = (jint)len_cipher;
 
-    (*env)->ReleasePrimitiveArrayCritical(env, key, keyNative, JNI_ABORT);
-    (*env)->ReleasePrimitiveArrayCritical(env, iv, ivNative, JNI_ABORT);
-    (*env)->ReleasePrimitiveArrayCritical(env, output, outputNative, 0);
-
-    if (inLen > 0) {
+cleanup:
+    if (NULL != inputNative) {
         (*env)->ReleasePrimitiveArrayCritical(env, input, inputNative, JNI_ABORT);
     }
+    if (NULL != outputNative) {
+        (*env)->ReleasePrimitiveArrayCritical(env, output, outputNative, 0);
+    }
+    if (NULL != aadNative) {
+        (*env)->ReleasePrimitiveArrayCritical(env, aad, aadNative, JNI_ABORT);
+    }
+    if (NULL != ivNative) {
+        (*env)->ReleasePrimitiveArrayCritical(env, iv, ivNative, JNI_ABORT);
+    }
+    if (NULL != keyNative) {
+        (*env)->ReleasePrimitiveArrayCritical(env, key, keyNative, JNI_ABORT);
+    }
 
-    (*env)->ReleasePrimitiveArrayCritical(env, aad, aadNative, JNI_ABORT);
-
-    return (jint)len_cipher;
+    return ret;
 }
 
 /* GCM Decryption
  *
  * Class:     jdk_crypto_jniprovider_NativeCrypto
  * Method:    GCMDecrypt
- * Signature: ([BI[BI[BII[BI[BII)I
+ * Signature: (J[BI[BI[BII[BI[BIIZZ)I
  */
 JNIEXPORT jint JNICALL Java_jdk_crypto_jniprovider_NativeCrypto_GCMDecrypt
-  (JNIEnv * env, jclass obj, jbyteArray key, jint keyLen, jbyteArray iv, jint ivLen,
+  (JNIEnv * env, jclass obj, jlong context, jbyteArray key, jint keyLen, jbyteArray iv, jint ivLen,
   jbyteArray input, jint inOffset, jint inLen, jbyteArray output, jint outOffset,
-  jbyteArray aad, jint aadLen, jint tagLen)
+  jbyteArray aad, jint aadLen, jint tagLen, jboolean newIVLen, jboolean newKeyLen)
 {
-    unsigned char* inputNative = NULL;
-    unsigned char* aadNative = NULL;
-    int ret = 0, len = 0, plaintext_len = 0;
-    unsigned char* keyNative = NULL;
-    unsigned char* ivNative = NULL;
-    unsigned char* outputNative = NULL;
-    EVP_CIPHER_CTX* ctx = NULL;
-    const EVP_CIPHER* evp_gcm_cipher = NULL;
+    jint ret = -1;
 
-    keyNative = (unsigned char*)((*env)->GetPrimitiveArrayCritical(env, key, 0));
-    if (NULL == keyNative) {
-        return -1;
+    int len = 0;
+    int plaintext_len = 0;
+    unsigned char *keyNative = NULL;
+    unsigned char *ivNative = NULL;
+    unsigned char *aadNative = NULL;
+    unsigned char *inputNative = NULL;
+    unsigned char *outputNative = NULL;
+
+    EVP_CIPHER_CTX *ctx = (EVP_CIPHER_CTX *)(intptr_t) context;
+    const EVP_CIPHER *evp_gcm_cipher = NULL;
+
+    if (NULL == ctx) {
+        printErrors();
+        goto cleanup;
     }
 
-    ivNative = (unsigned char*)((*env)->GetPrimitiveArrayCritical(env, iv, 0));
-    if (NULL == ivNative) {
-        (*env)->ReleasePrimitiveArrayCritical(env, key, keyNative, JNI_ABORT);
-        return -1;
-    }
-
-    outputNative = (unsigned char*)((*env)->GetPrimitiveArrayCritical(env, output, 0));
-    if (NULL == outputNative) {
-        (*env)->ReleasePrimitiveArrayCritical(env, key, keyNative, JNI_ABORT);
-        (*env)->ReleasePrimitiveArrayCritical(env, iv, ivNative, JNI_ABORT);
-        return -1;
-    }
-
-    if (inLen > 0) {
-        inputNative = (unsigned char*)((*env)->GetPrimitiveArrayCritical(env, input, 0));
-        if (NULL == inputNative) {
-            (*env)->ReleasePrimitiveArrayCritical(env, key, keyNative, JNI_ABORT);
-            (*env)->ReleasePrimitiveArrayCritical(env, iv, ivNative, JNI_ABORT);
-            (*env)->ReleasePrimitiveArrayCritical(env, output, outputNative, JNI_ABORT);
-            return -1;
-        }
-    }
-
-    if (aadLen > 0) {
-        aadNative = (unsigned char*)((*env)->GetPrimitiveArrayCritical(env, aad, 0));
-        if (NULL == aadNative) {
-            (*env)->ReleasePrimitiveArrayCritical(env, key, keyNative, JNI_ABORT);
-            (*env)->ReleasePrimitiveArrayCritical(env, iv, ivNative, JNI_ABORT);
-            (*env)->ReleasePrimitiveArrayCritical(env, output, outputNative, JNI_ABORT);
-            if (inLen > 0) {
-                (*env)->ReleasePrimitiveArrayCritical(env, input, inputNative, JNI_ABORT);
-            }
-            return -1;
-        }
-    }
-
-    switch(keyLen) {
+    if (newKeyLen) {
+        switch (keyLen) {
         case 16:
             evp_gcm_cipher = (*OSSL_aes_128_gcm)();
             break;
@@ -1520,131 +1493,102 @@ JNIEXPORT jint JNICALL Java_jdk_crypto_jniprovider_NativeCrypto_GCMDecrypt
             break;
         default:
             break;
+        }
+
+        if (1 != (*OSSL_CipherInit_ex)(ctx, evp_gcm_cipher, NULL, NULL, NULL, OPENSSL_DECRYPTION_MODE)) {
+            printErrors();
+            goto cleanup;
+        }
     }
 
-    ctx = (*OSSL_CIPHER_CTX_new)();
-
-    if (1 != (*OSSL_CipherInit_ex)(ctx, evp_gcm_cipher, NULL, NULL, NULL, 0 )) { /* 1 - Encrypt mode 0 Decrypt Mode*/
-        printErrors();
-        (*OSSL_CIPHER_CTX_free)(ctx);
-        (*env)->ReleasePrimitiveArrayCritical(env, key, keyNative, JNI_ABORT);
-        (*env)->ReleasePrimitiveArrayCritical(env, iv, ivNative, JNI_ABORT);
-        (*env)->ReleasePrimitiveArrayCritical(env, output, outputNative, JNI_ABORT);
-        if (inLen > 0) {
-            (*env)->ReleasePrimitiveArrayCritical(env, input, inputNative, JNI_ABORT);
+    if (newIVLen) {
+        if (1 != (*OSSL_CIPHER_CTX_ctrl)(ctx, EVP_CTRL_GCM_SET_IVLEN, ivLen, NULL)) {
+            printErrors();
+            goto cleanup;
         }
-        if (aadLen > 0) {
-            (*env)->ReleasePrimitiveArrayCritical(env, aad, aadNative, JNI_ABORT);
-        }
-        return -1;
     }
 
-    if (1 != (*OSSL_CIPHER_CTX_ctrl)(ctx, EVP_CTRL_GCM_SET_IVLEN, ivLen, NULL)) {
-        printErrors();
-        (*OSSL_CIPHER_CTX_free)(ctx);
-        (*env)->ReleasePrimitiveArrayCritical(env, key, keyNative, JNI_ABORT);
-        (*env)->ReleasePrimitiveArrayCritical(env, iv, ivNative, JNI_ABORT);
-        (*env)->ReleasePrimitiveArrayCritical(env, output, outputNative, JNI_ABORT);
-        if (inLen > 0) {
-            (*env)->ReleasePrimitiveArrayCritical(env, input, inputNative, JNI_ABORT);
-        }
-        if (aadLen > 0) {
-            (*env)->ReleasePrimitiveArrayCritical(env, aad, aadNative, JNI_ABORT);
-        }
-        return -1;
+    /* Initialise context with key and IV. */
+    keyNative = (unsigned char *)((*env)->GetPrimitiveArrayCritical(env, key, 0));
+    if (NULL == keyNative) {
+        goto cleanup;
     }
 
-    /* Initialise key and IV */
+    ivNative = (unsigned char *)((*env)->GetPrimitiveArrayCritical(env, iv, 0));
+    if (NULL == ivNative) {
+        goto cleanup;
+    }
+
     if (0 == (*OSSL_DecryptInit_ex)(ctx, NULL, NULL, keyNative, ivNative)) {
         printErrors();
-        (*OSSL_CIPHER_CTX_free)(ctx);
-        (*env)->ReleasePrimitiveArrayCritical(env, key, keyNative, JNI_ABORT);
-        (*env)->ReleasePrimitiveArrayCritical(env, iv, ivNative, JNI_ABORT);
-        (*env)->ReleasePrimitiveArrayCritical(env, output, outputNative, JNI_ABORT);
-        if (inLen > 0) {
-            (*env)->ReleasePrimitiveArrayCritical(env, input, inputNative, JNI_ABORT);
-        }
-        if (aadLen > 0) {
-            (*env)->ReleasePrimitiveArrayCritical(env, aad, aadNative, JNI_ABORT);
-        }
-        return -1;
+        goto cleanup;
     }
 
-    /* Provide any AAD data */
+    /* Provide any AAD data. */
     if (aadLen > 0) {
+        aadNative = (unsigned char *)((*env)->GetPrimitiveArrayCritical(env, aad, 0));
+        if (NULL == aadNative) {
+            goto cleanup;
+        }
+
         if (0 == (*OSSL_DecryptUpdate)(ctx, NULL, &len, aadNative, aadLen)) {
             printErrors();
-            (*OSSL_CIPHER_CTX_free)(ctx);
-            (*env)->ReleasePrimitiveArrayCritical(env, key, keyNative, JNI_ABORT);
-            (*env)->ReleasePrimitiveArrayCritical(env, iv, ivNative, JNI_ABORT);
-            (*env)->ReleasePrimitiveArrayCritical(env, output, outputNative, JNI_ABORT);
-            if (inLen > 0) {
-                (*env)->ReleasePrimitiveArrayCritical(env, input, inputNative, JNI_ABORT);
-            }
-            if (aadLen > 0) {
-                (*env)->ReleasePrimitiveArrayCritical(env, aad, aadNative, JNI_ABORT);
-            }
-            return -1;
+            goto cleanup;
+        }
+    }
+
+    outputNative = (unsigned char *)((*env)->GetPrimitiveArrayCritical(env, output, 0));
+    if (NULL == outputNative) {
+        goto cleanup;
+    }
+
+    if (inLen > 0) {
+        inputNative = (unsigned char *)((*env)->GetPrimitiveArrayCritical(env, input, 0));
+        if (NULL == inputNative) {
+            goto cleanup;
         }
     }
 
     if (inLen - tagLen > 0) {
         if (0 == (*OSSL_DecryptUpdate)(ctx, outputNative + outOffset, &len, inputNative + inOffset, inLen - tagLen)) {
             printErrors();
-            (*OSSL_CIPHER_CTX_free)(ctx);
-            (*env)->ReleasePrimitiveArrayCritical(env, key, keyNative, JNI_ABORT);
-            (*env)->ReleasePrimitiveArrayCritical(env, iv, ivNative, JNI_ABORT);
-            (*env)->ReleasePrimitiveArrayCritical(env, output, outputNative, JNI_ABORT);
-            if (inLen > 0) {
-                (*env)->ReleasePrimitiveArrayCritical(env, input, inputNative, JNI_ABORT);
-            }
-            if (aadLen > 0) {
-                (*env)->ReleasePrimitiveArrayCritical(env, aad, aadNative, JNI_ABORT);
-            }
-            return -1;
+            goto cleanup;
         }
         plaintext_len = len;
     }
 
     if (0 == (*OSSL_CIPHER_CTX_ctrl)(ctx, EVP_CTRL_GCM_SET_TAG, tagLen, inputNative + inOffset + inLen - tagLen)) {
         printErrors();
-        (*OSSL_CIPHER_CTX_free)(ctx);
-        (*env)->ReleasePrimitiveArrayCritical(env, key, keyNative, JNI_ABORT);
-        (*env)->ReleasePrimitiveArrayCritical(env, iv, ivNative, JNI_ABORT);
-        (*env)->ReleasePrimitiveArrayCritical(env, output, outputNative, JNI_ABORT);
-        if (inLen > 0) {
-            (*env)->ReleasePrimitiveArrayCritical(env, input, inputNative, JNI_ABORT);
-        }
-        if (aadLen > 0) {
-            (*env)->ReleasePrimitiveArrayCritical(env, aad, aadNative, JNI_ABORT);
-        }
-        return -1;
+        goto cleanup;
     }
 
-    ret = (*OSSL_DecryptFinal)(ctx, outputNative + outOffset + len, &len);
+    if (0 < (*OSSL_DecryptFinal)(ctx, outputNative + outOffset + len, &len)) {
+        /* Decryption was successful. */
+        plaintext_len += len;
+        ret = (jint)plaintext_len;
+    } else {
+        /* There was a tag mismatch. */
+        ret = -2;
+    }
 
-    (*OSSL_CIPHER_CTX_free)(ctx);
-
-    (*env)->ReleasePrimitiveArrayCritical(env, key, keyNative, JNI_ABORT);
-    (*env)->ReleasePrimitiveArrayCritical(env, iv, ivNative, JNI_ABORT);
-    (*env)->ReleasePrimitiveArrayCritical(env, output, outputNative, 0);
-
-    if (inLen > 0) {
+cleanup:
+    if (NULL != inputNative) {
         (*env)->ReleasePrimitiveArrayCritical(env, input, inputNative, JNI_ABORT);
     }
-
-    if (aadLen > 0) {
+    if (NULL != outputNative) {
+        (*env)->ReleasePrimitiveArrayCritical(env, output, outputNative, 0);
+    }
+    if (NULL != aadNative) {
         (*env)->ReleasePrimitiveArrayCritical(env, aad, aadNative, JNI_ABORT);
     }
-
-    if (ret > 0) {
-        /* Successful Decryption */
-        plaintext_len += len;
-        return (jint)plaintext_len;
-    } else {
-        /* Tag Mismatch */
-        return -2;
+    if (NULL != ivNative) {
+        (*env)->ReleasePrimitiveArrayCritical(env, iv, ivNative, JNI_ABORT);
     }
+    if (NULL != keyNative) {
+        (*env)->ReleasePrimitiveArrayCritical(env, key, keyNative, JNI_ABORT);
+    }
+
+    return ret;
 }
 
 BIGNUM* convertJavaBItoBN(unsigned char* in, int len);
@@ -2153,29 +2097,35 @@ int OSSL102_RSA_set0_crt_params(RSA *r2, BIGNUM *dmp1, BIGNUM *dmq1, BIGNUM *iqm
 /*
  * Class:     jdk_crypto_jniprovider_NativeCrypto
  * Method:    ChaCha20Init
- * Signature: (JI[BI[BI)I
+ * Signature: (JI[BI[BIZ)I
  */
 JNIEXPORT jint JNICALL Java_jdk_crypto_jniprovider_NativeCrypto_ChaCha20Init
   (JNIEnv *env, jobject thisObj, jlong c, jint mode, jbyteArray iv, jint ivLen,
-  jbyteArray key, jint key_len)
+  jbyteArray key, jint key_len, jboolean doReset)
 {
     EVP_CIPHER_CTX *ctx = (EVP_CIPHER_CTX*)(intptr_t) c;
     unsigned char *ivNative = NULL;
     unsigned char *keyNative = NULL;
     const EVP_CIPHER *evp_cipher1 = NULL;
-    int encrypt = -1;
+    int encrypt = OPENSSL_SAME_MODE;
 
     if (NULL == ctx) {
         return -1;
     }
 
-    if ((0 == mode) || (1 == mode)) {
-        evp_cipher1 = (*OSSL_chacha20_poly1305)();
+    if ((OPENSSL_DECRYPTION_MODE == mode) || (OPENSSL_ENCRYPTION_MODE == mode)) {
+        /* Use the existing evp_cipher? */
+        if (JNI_FALSE == doReset) {
+            evp_cipher1 = (*OSSL_chacha20_poly1305)();
+        }
         encrypt = mode;
     } else if (2 == mode) {
+        /* Use the existing evp_cipher? */
+        if (JNI_FALSE == doReset) {
+            evp_cipher1 = (*OSSL_chacha20)();
+        }
         /* encrypt or decrypt does not matter */
-        encrypt = 1;
-        evp_cipher1 = (*OSSL_chacha20)();
+        encrypt = OPENSSL_ENCRYPTION_MODE;
     } else {
         return -1;
     }
@@ -2200,12 +2150,14 @@ JNIEXPORT jint JNICALL Java_jdk_crypto_jniprovider_NativeCrypto_ChaCha20Init
     }
 
     /* if using Poly1305 */
-    if (2 != mode) {
-        if (1 != (*OSSL_CIPHER_CTX_ctrl)(ctx, EVP_CTRL_AEAD_SET_IVLEN, ivLen, NULL)) {
-            printErrors();
-            (*env)->ReleaseByteArrayElements(env, iv, (jbyte*)ivNative, JNI_ABORT);
-            (*env)->ReleaseByteArrayElements(env, key, (jbyte*)keyNative, JNI_ABORT);
-            return -1;
+    if (JNI_FALSE == doReset) {
+        if (2 != mode) {
+            if (1 != (*OSSL_CIPHER_CTX_ctrl)(ctx, EVP_CTRL_AEAD_SET_IVLEN, ivLen, NULL)) {
+                printErrors();
+                (*env)->ReleaseByteArrayElements(env, iv, (jbyte*)ivNative, JNI_ABORT);
+                (*env)->ReleaseByteArrayElements(env, key, (jbyte*)keyNative, JNI_ABORT);
+                return -1;
+            }
         }
     }
 
