@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2015, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -23,17 +21,28 @@
  * questions.
  */
 
-package sun.java2d.marlin;
+/*
+ * @test
+ * @bug 8316414
+ * @summary C2: large byte array clone triggers "failed: malformed control flow" assertion failure on linux-x86
+ * @run main/othervm  -Xcomp -XX:CompileOnly=TestNewMaxLengthArray::createAndClone TestNewMaxLengthArray
+ */
 
-public final class Version {
+public class TestNewMaxLengthArray {
 
-    private static final String VERSION = "marlin-0.9.4.6.1-Unsafe-OpenJDK";
+    // Maximum length of a byte array on a 32-bits platform using default object
+    // alignment (8 bytes).
+    static final int MAX_BYTE_ARRAY_LENGTH = 0x7ffffffc;
 
-    public static String getVersion() {
-        return VERSION;
+    public static byte[] createAndClone() {
+        byte[] array = new byte[MAX_BYTE_ARRAY_LENGTH];
+        return array.clone();
     }
 
-    private Version() {
+    public static void main(String[] a) {
+        try {
+            createAndClone();
+        } catch (OutOfMemoryError oome) {
+        }
     }
-
 }
