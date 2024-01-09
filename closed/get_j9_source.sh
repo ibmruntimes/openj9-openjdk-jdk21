@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ===========================================================================
-# (c) Copyright IBM Corp. 2017, 2023 All Rights Reserved
+# (c) Copyright IBM Corp. 2017, 2024 All Rights Reserved
 # ===========================================================================
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -67,9 +67,9 @@ git_urls[openj9]=https://github.com/eclipse-openj9/openj9
 git_urls[omr]=https://github.com/eclipse-openj9/openj9-omr
 
 currentbranch=$(git rev-parse --abbrev-ref HEAD)
-if [[ "$currentbranch" =~ v[0-9]+\.[0-9]+(\.[0-9]+)?-release ]] ; then
-	branches[openj9]=$currentbranch
-	branches[omr]=$currentbranch
+if [[ "$currentbranch" =~ (ibm-)?v[0-9]+\.[0-9]+(\.[0-9]+)?-release ]] ; then
+	branches[openj9]=${currentbranch#ibm-}
+	branches[omr]=${currentbranch#ibm-}
 else
 	branches[openj9]=master
 	branches[omr]=openj9
