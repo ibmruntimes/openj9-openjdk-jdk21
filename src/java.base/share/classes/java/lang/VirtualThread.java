@@ -860,16 +860,23 @@ final class VirtualThread extends BaseVirtualThread {
     public void interrupt() {
         if (Thread.currentThread() != this) {
             checkAccess();
+
+            Interruptible blocker;
             synchronized (interruptLock) {
                 interrupted = true;
-                Interruptible b = nioBlocker;
-                if (b != null) {
-                    b.interrupt(this);
+                blocker = nioBlocker();
+                if (blocker != null) {
+                    blocker.interrupt(this);
                 }
 
                 // interrupt carrier thread if mounted
                 Thread carrier = carrierThread;
                 if (carrier != null) carrier.setInterrupt();
+            }
+
+            // notify blocker after releasing interruptLock
+            if (blocker != null) {
+                blocker.postInterrupt();
             }
         } else {
             interrupted = true;
