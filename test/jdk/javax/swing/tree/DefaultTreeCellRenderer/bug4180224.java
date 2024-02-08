@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,38 +21,26 @@
  * questions.
  */
 
-import jdk.test.lib.Platform;
-import jdk.test.lib.Utils;
-import jdk.test.lib.dcmd.CommandExecutor;
-import jdk.test.lib.dcmd.JMXExecutor;
-import jdk.test.lib.dcmd.PidJcmdExecutor;
+/*
+ * @test
+ * @bug 4180224
+ * @summary DefaultTreeCellRenderer.hasFocus protected (not private) now.
+ * @key headful
+ * @run main bug4180224
+*/
 
-import java.nio.file.Paths;
+import javax.swing.tree.DefaultTreeCellRenderer;
 
-import org.testng.annotations.Test;
+public class bug4180224 {
 
-public abstract class AttachFailedTestBase {
-
-    public abstract void run(CommandExecutor executor);
-
-    /**
-     * Build path to shared object according to platform rules
-     */
-    public static String getSharedObjectPath(String name) {
-        String libname = Platform.buildSharedLibraryName(name);
-
-        return Paths.get(Utils.TEST_NATIVE_PATH, libname)
-                    .toAbsolutePath()
-                    .toString();
+    static class MyDTCR extends DefaultTreeCellRenderer {
+        void test() {
+            hasFocus = false;
+        }
     }
 
-    @Test
-    public void jmx() {
-        run(new JMXExecutor());
-    }
-
-    @Test
-    public void cli() {
-        run(new PidJcmdExecutor());
+    public static void main(String[] argv) {
+        MyDTCR m = new MyDTCR();
+        m.test();
     }
 }
