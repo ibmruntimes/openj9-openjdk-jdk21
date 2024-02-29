@@ -25,7 +25,7 @@
 
 /*
  * ===========================================================================
- * (c) Copyright IBM Corp. 2021, 2023 All Rights Reserved
+ * (c) Copyright IBM Corp. 2021, 2024 All Rights Reserved
  * ===========================================================================
  */
 
@@ -1800,14 +1800,15 @@ public class Thread implements Runnable {
         if (com.ibm.oti.vm.VM.isJVMInSingleThreadedMode()) {
             return interruptedImpl();
         }
-        synchronized (interruptLock) {
-            boolean oldValue = interrupted;
-            if (oldValue) {
-                interrupted = false;
-                clearInterruptEvent();
-            }
-            return oldValue;
+        boolean oldValue = interrupted;
+        // We may have been interrupted the moment after we read the field,
+        // so only clear the field if we saw that it was set and will return
+        // true; otherwise we could lose an interrupt.
+        if (oldValue) {
+            interrupted = false;
+            clearInterruptEvent();
         }
+        return oldValue;
     }
 
     /**
