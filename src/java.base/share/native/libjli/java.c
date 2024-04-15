@@ -25,7 +25,7 @@
 
 /*
  * ===========================================================================
- * (c) Copyright IBM Corp. 2022, 2023 All Rights Reserved
+ * (c) Copyright IBM Corp. 2022, 2024 All Rights Reserved
  * ===========================================================================
  */
 
@@ -58,6 +58,7 @@
 
 
 #include <assert.h>
+#include <sys/wait.h>
 
 #include "java.h"
 #include "jni.h"
@@ -454,6 +455,37 @@ JLI_Launch(int argc, char ** argv,              /* main argc, argv */
         } \
     } while (JNI_FALSE)
 
+static char *getCheckpointDir(int argc, char **argv) {
+    char *checkpointDir = NULL;
+    const char *target = "-XX:CRaCRestoreFrom=";
+    for (int i = 0; i < argc; i++) {
+        if (0 == strncmp(argv[i], target, strlen(target))) {
+            checkpointDir = (char *)JLI_MemAlloc(strlen(argv[i] + strlen(target)) + 1);
+            if (NULL != checkpointDir) {
+                strcpy(checkpointDir, argv[i] + strlen(target));
+            } else {
+                JLI_ReportErrorMessage("Failed to allocate memory for checkpointDir.");
+                exit(EXIT_FAILURE);
+            }
+        }
+    }
+    return checkpointDir;
+}
+
+static int restoreFromCheckpoint(char *checkpointDir) {
+    char* argv[7];
+    argv[0] = "criu";
+    argv[1] = "restore";
+    argv[2] = "-D";
+    argv[3] = checkpointDir;
+    argv[4] = "-v4";
+    argv[5] = "--shell-job";
+    argv[6] = NULL;
+    if (-1 == execvp(argv[0], argv)) {
+        return -1;
+    }
+    return 0;
+}
 
 int
 JavaMain(void* _args)
@@ -475,8 +507,33 @@ JavaMain(void* _args)
     jobject mainObject;
     int ret = 0;
     jlong start = 0, end = 0;
+    char *checkpointDir = getCheckpointDir(argc, argv);
 
     RegisterThread();
+
+    if (NULL != checkpointDir) {
+        /*
+         * The if block will be invoked by the child process,
+         * and the else block will be invoked by the parent process.
+         */
+        pid_t criuRestorePid = fork();
+        if (0 == criuRestorePid) {
+            exit(restoreFromCheckpoint(checkpointDir));
+        } else {
+            int status;
+            waitpid(criuRestorePid, &status, 0);
+            if (WIFEXITED(status)) {
+                if (0 != WEXITSTATUS(status)) {
+                    JLI_ReportErrorMessage("Failed to restore from checkpoint.");
+                    exit(EXIT_FAILURE);
+                }
+            } else {
+                JLI_ReportErrorMessage("CRIU restore child process failed.");
+                exit(EXIT_FAILURE);
+            }
+            exit(EXIT_SUCCESS);
+        }
+    }
 
     /* Initialize the virtual machine */
     start = CurrentTimeMicros();
