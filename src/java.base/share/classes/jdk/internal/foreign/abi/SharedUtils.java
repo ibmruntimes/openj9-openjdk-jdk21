@@ -25,7 +25,7 @@
 
 /*
  * ===========================================================================
- * (c) Copyright IBM Corp. 2022, 2023 All Rights Reserved
+ * (c) Copyright IBM Corp. 2022, 2024 All Rights Reserved
  * ===========================================================================
  */
 
@@ -44,6 +44,7 @@ import jdk.internal.foreign.abi.ppc64.aix.AixPPC64Linker;
 import jdk.internal.foreign.abi.ppc64.linux.LinuxPPC64leLinker;
 import jdk.internal.foreign.abi.riscv64.linux.LinuxRISCV64Linker;
 import jdk.internal.foreign.abi.s390.linux.LinuxS390Linker;
+import jdk.internal.foreign.abi.s390.zos.ZosS390Linker;
 import jdk.internal.foreign.abi.x64.sysv.SysVx64Linker;
 import jdk.internal.foreign.abi.x64.windows.Windowsx64Linker;
 import jdk.internal.vm.annotation.ForceInline;
@@ -249,10 +250,11 @@ public final class SharedUtils {
             case LINUX_AARCH_64 -> LinuxAArch64Linker.getInstance();
             case MAC_OS_AARCH_64 -> MacOsAArch64Linker.getInstance();
             case WIN_AARCH_64 -> WindowsAArch64Linker.getInstance();
+            case AIX_PPC_64 -> AixPPC64Linker.getInstance();
             case LINUX_PPC_64_LE -> LinuxPPC64leLinker.getInstance();
             case LINUX_RISCV_64 -> LinuxRISCV64Linker.getInstance();
             case LINUX_S390 -> LinuxS390Linker.getInstance();
-            case AIX_PPC_64 -> AixPPC64Linker.getInstance();
+            case ZOS_S390 -> ZosS390Linker.getInstance();
             case FALLBACK -> FallbackLinker.getInstance();
             case UNSUPPORTED -> throw new UnsupportedOperationException("Platform does not support native linker");
         };
