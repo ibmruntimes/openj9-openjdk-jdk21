@@ -25,7 +25,7 @@
 
 /*
  * ===========================================================================
- * (c) Copyright IBM Corp. 2022, 2023 All Rights Reserved
+ * (c) Copyright IBM Corp. 2022, 2024 All Rights Reserved
  * ===========================================================================
  */
 
@@ -475,7 +475,7 @@ public final class SunEC extends Provider {
             && !isAIX
         ) {
             putService(new ProviderServiceA(this, "KeyPairGenerator",
-                "EC", "sun.security.ec.NaticeECKeyPairGenerator", ATTRS));
+                "EC", "sun.security.ec.NativeECKeyPairGenerator", ATTRS));
         } else {
             putService(new ProviderServiceA(this, "KeyPairGenerator",
                 "EC", "sun.security.ec.ECKeyPairGenerator", ATTRS));

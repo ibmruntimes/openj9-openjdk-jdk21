@@ -20,6 +20,11 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+/*
+ * ===========================================================================
+ * (c) Copyright IBM Corp. 2024, 2024 All Rights Reserved
+ * ===========================================================================
+ */
 
 /* @test
  * @bug 6232010
@@ -73,6 +78,7 @@ public class SubclassGC {
                 systemLoader = null;
 
                 System.err.println("\nStart Garbage Collection right now");
+                System.gc();
                 System.gc();
 
                 Reference<? extends Class<?>> dequeued = queue.remove(TIMEOUT);
