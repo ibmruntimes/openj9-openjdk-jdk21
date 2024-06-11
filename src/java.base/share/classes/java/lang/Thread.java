@@ -25,7 +25,7 @@
 
 /*
  * ===========================================================================
- * (c) Copyright IBM Corp. 2021, 2023 All Rights Reserved
+ * (c) Copyright IBM Corp. 2021, 2024 All Rights Reserved
  * ===========================================================================
  */
 
@@ -1774,7 +1774,9 @@ public class Thread implements Runnable {
     public boolean isInterrupted() {
         // use fully qualified name to avoid ambiguous class error
         if (com.ibm.oti.vm.VM.isJVMInSingleThreadedMode()) {
-            return isInterruptedImpl();
+            synchronized (interruptLock) {
+                return isInterruptedImpl();
+            }
         }
         return interrupted;
     }
@@ -3031,7 +3033,9 @@ public class Thread implements Runnable {
     }
 
     private void interrupt0() {
-        interruptImpl();
+        synchronized (interruptLock) {
+            interruptImpl();
+        }
     }
 
     private static void clearInterruptEvent() {
