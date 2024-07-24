@@ -432,6 +432,8 @@ java/lang/Thread/virtual/stress/GetStackTraceALotWhenPinned.java#id0 https://git
 java/security/Security/ConfigFileTest.java https://github.com/ibmruntimes/openj9-openjdk-jdk21/issues/153 linux-ppc64le,linux-s390x
 javax/crypto/CipherSpi/ResetByteBuffer.java https://github.com/ibmruntimes/openj9-openjdk-jdk21/issues/153 linux-s390x
 java/security/Security/ConfigFileTest.java https://github.com/ibmruntimes/openj9-openjdk-jdk21/issues/153 linux-ppc64le,linux-s390x,aix-all
+java/lang/System/LoggerFinder/SignedLoggerFinderTest/SignedLoggerFinderTest.java https://github.com/ibmruntimes/openj9-openjdk-jdk21/issues/153 linux-x64,linux-ppc64le,linux-s390x,aix-all
+java/lang/Thread/jni/AttachCurrentThread/AttachTest.java#id1 https://github.com/ibmruntimes/openj9-openjdk-jdk21/issues/153 linux-x64,linux-ppc64le,linux-s390x,aix-all
 #
 # Exclude tests list from extended.openjdk
 #
@@ -976,3 +978,7 @@ serviceability/jvmti/vthread/GetThreadState/GetThreadStateTest.java#default http
 serviceability/jvmti/vthread/GetThreadState/GetThreadStateTest.java#no-vmcontinuations https://github.com/ibmruntimes/openj9-openjdk-jdk21/issues/153 linux-s390x
 
 serviceability/jvmti/stress/StackTrace/NotSuspended/GetStackTraceNotSuspendedStressTest.java https://github.com/ibmruntimes/openj9-openjdk-jdk21/issues/153 aix-all
+sun/security/pkcs11/SecretKeyFactory/TestPBKD.java https://github.com/ibmruntimes/openj9-openjdk-jdk21/issues/153 linux-x64,linux-ppc64le,linux-s390x,aix-all
+sun/security/ssl/SSLContextImpl/SSLContextDefault.java https://github.com/ibmruntimes/openj9-openjdk-jdk21/issues/153 linux-x64,linux-ppc64le,linux-s390x,aix-all
+java/nio/channels/Selector/SelectWithConsumer.java#id0 https://github.com/ibmruntimes/openj9-openjdk-jdk21/issues/153 linux-x64,linux-ppc64le,linux-s390x,aix-all
+java/nio/channels/unixdomain/IOExchanges.java https://github.com/ibmruntimes/openj9-openjdk-jdk21/issues/153 linux-x64,linux-ppc64le,linux-s390x,aix-all
