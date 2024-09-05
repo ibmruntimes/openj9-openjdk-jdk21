@@ -1,5 +1,5 @@
 # ===========================================================================
-# (c) Copyright IBM Corp. 2021, 2021 All Rights Reserved
+# (c) Copyright IBM Corp. 2021, 2024 All Rights Reserved
 # ===========================================================================
 # This code is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License version 2 only, as
@@ -32,7 +32,7 @@ $(HEALTHCENTER_EXTRACT) : $(HEALTHCENTER_JAR)
 	@$(RM) -rf $(@D)
 	$(call MakeDir, $(@D))
 	$(UNZIP) -q $< -d $(@D)
-  ifeq (zos,$(OPENJDK_TARGET_OS))
+  ifeq ($(call isTargetOs, zos), true)
 	$(CHTAG) -c ISO8859-1 -t $(HEALTHCENTER_HOME)/healthcenter.properties
   endif
 	@$(TOUCH) $@
@@ -70,7 +70,7 @@ HEALTHCENTER_LIBRARIES = \
 	$(wildcard $(HEALTHCENTER_HOME)/plugins/$(call SHARED_LIBRARY,hcmqtt))
 
 # User-configurable .properties files should be encoded in EBCDIC on z/OS.
-ifeq (zos,$(OPENJDK_TARGET_OS))
+ifeq ($(call isTargetOs, zos), true)
   FIX_ENCODING := | $(ICONV) -f ISO8859-1 -t IBM-1047
 else
   FIX_ENCODING :=
