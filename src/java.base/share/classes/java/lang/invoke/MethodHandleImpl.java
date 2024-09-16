@@ -25,7 +25,7 @@
 
 /*
  * ===========================================================================
- * (c) Copyright IBM Corp. 2022, 2022 All Rights Reserved
+ * (c) Copyright IBM Corp. 2022, 2024 All Rights Reserved
  * ===========================================================================
  */
 
@@ -533,6 +533,7 @@ abstract class MethodHandleImpl {
             return true;
         }
 
+        @Hidden
         @Override
         public Object invokeWithArguments(Object... arguments) throws Throwable {
             MethodType type = this.type();
