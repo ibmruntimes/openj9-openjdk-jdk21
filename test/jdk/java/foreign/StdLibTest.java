@@ -22,6 +22,12 @@
  */
 
 /*
+ * ===========================================================================
+ * (c) Copyright IBM Corp. 2024, 2024 All Rights Reserved
+ * ===========================================================================
+ */
+
+/*
  * @test
  * @enablePreview
  * @requires jdk.foreign.linker != "UNSUPPORTED"
@@ -31,6 +37,7 @@
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
+import java.nio.charset.Charset;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -55,6 +62,13 @@ import static org.testng.Assert.*;
 public class StdLibTest extends NativeTestHelper {
 
     final static Linker abi = Linker.nativeLinker();
+
+    final static Charset nativeCharset = Charset.forName(System.getProperty("native.encoding"));
+
+    static MemorySegment nativeBytesFromString(Arena arena, String str) {
+        byte[] nativeBytes = str.getBytes(nativeCharset);
+        return arena.allocateArray(ValueLayout.JAVA_BYTE, Arrays.copyOf(nativeBytes, nativeBytes.length + 1));
+    }
 
     private StdLibHelper stdLibHelper = new StdLibHelper();
 
@@ -300,7 +314,7 @@ public class StdLibTest extends NativeTestHelper {
 
         int printf(String format, List<PrintfArg> args) throws Throwable {
             try (var arena = Arena.ofConfined()) {
-                MemorySegment formatStr = arena.allocateUtf8String(format);
+                MemorySegment formatStr = nativeBytesFromString(arena, format);
                 return (int)specializedPrintf(args).invokeExact(formatStr,
                         args.stream().map(a -> a.nativeValue(arena)).toArray());
             }
@@ -381,7 +395,7 @@ public class StdLibTest extends NativeTestHelper {
         INT(int.class, C_INT, "%d", arena -> 42, 42),
         LONG(long.class, C_LONG_LONG, "%d", arena -> 84L, 84L),
         DOUBLE(double.class, C_DOUBLE, "%.4f", arena -> 1.2345d, 1.2345d),
-        STRING(MemorySegment.class, C_POINTER, "%s", arena -> arena.allocateUtf8String("str"), "str");
+        STRING(MemorySegment.class, C_POINTER, "%s", arena -> nativeBytesFromString(arena, "str"), "str");
 
         final Class<?> carrier;
         final ValueLayout layout;
