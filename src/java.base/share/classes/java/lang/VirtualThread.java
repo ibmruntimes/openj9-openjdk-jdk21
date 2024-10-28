@@ -24,7 +24,7 @@
  */
 /*
  * ===========================================================================
- * (c) Copyright IBM Corp. 2022, 2023 All Rights Reserved
+ * (c) Copyright IBM Corp. 2022, 2024 All Rights Reserved
  * ===========================================================================
  */
 package java.lang;
@@ -887,8 +887,11 @@ final class VirtualThread extends BaseVirtualThread {
         boolean oldValue = interrupted;
         if (oldValue) {
             synchronized (interruptLock) {
-                interrupted = false;
-                carrierThread.clearInterrupt();
+                oldValue = interrupted;
+                if (oldValue) {
+                    interrupted = false;
+                    carrierThread.clearInterrupt();
+                }
             }
         }
         return oldValue;
