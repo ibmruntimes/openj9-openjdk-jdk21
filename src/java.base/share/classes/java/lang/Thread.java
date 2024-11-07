@@ -1805,14 +1805,17 @@ public class Thread implements Runnable {
         if (com.ibm.oti.vm.VM.isJVMInSingleThreadedMode()) {
             return interruptedImpl();
         }
-        synchronized (interruptLock) {
-            boolean oldValue = interrupted;
-            if (oldValue) {
-                interrupted = false;
-                clearInterruptEvent();
+        boolean oldValue = interrupted;
+        if (oldValue) {
+            synchronized (interruptLock) {
+                oldValue = interrupted;
+                if (oldValue) {
+                    interrupted = false;
+                    clearInterruptEvent();
+                }
             }
-            return oldValue;
         }
+        return oldValue;
     }
 
     /**
