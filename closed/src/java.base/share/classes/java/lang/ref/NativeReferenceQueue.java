@@ -37,5 +37,6 @@ package java.lang.ref;
  */
 final class NativeReferenceQueue<T> extends ReferenceQueue<T> {
 	public NativeReferenceQueue() {
+		super();
 	}
 }
