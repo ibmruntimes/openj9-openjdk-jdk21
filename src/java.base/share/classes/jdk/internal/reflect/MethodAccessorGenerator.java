@@ -23,10 +23,20 @@
  * questions.
  */
 
+/*
+ * ===========================================================================
+ * (c) Copyright IBM Corp. 2024, 2024 All Rights Reserved
+ * ===========================================================================
+ */
+
 package jdk.internal.reflect;
 
 import java.security.AccessController;
 import java.security.PrivilegedAction;
+
+/*[IF CRIU_SUPPORT]*/
+import openj9.internal.criu.NotCheckpointSafe;
+/*[ENDIF] CRIU_SUPPORT */
 
 /** Generator for jdk.internal.reflect.MethodAccessor and
     jdk.internal.reflect.ConstructorAccessor objects using bytecodes to
@@ -741,6 +751,9 @@ class MethodAccessorGenerator extends AccessorGenerator {
         return sb.toString();
     }
 
+    /*[IF CRIU_SUPPORT]*/
+    @NotCheckpointSafe
+    /*[ENDIF] CRIU_SUPPORT */
     private static synchronized String generateName(boolean isConstructor,
                                                     boolean forSerialization)
     {
