@@ -23,6 +23,10 @@
 # questions.
 #
 
+# ===========================================================================
+# (c) Copyright IBM Corp. 2025, 2025 All Rights Reserved
+# ===========================================================================
+
 ifndef _TEST_FILES_COMPILATION_GMK
 _TEST_FILES_COMPILATION_GMK := 1
 
@@ -65,7 +69,7 @@ define SetupTestFilesCompilationBody
   else ifeq ($(TOOLCHAIN_TYPE), clang)
     TEST_CFLAGS += -fvisibility=hidden
   else ifeq ($(TOOLCHAIN_TYPE), xlc)
-    TEST_CFLAGS += -qvisibility=hidden
+    # TEST_CFLAGS += -qvisibility=hidden
   endif
 
   # The list to depend on starts out empty
