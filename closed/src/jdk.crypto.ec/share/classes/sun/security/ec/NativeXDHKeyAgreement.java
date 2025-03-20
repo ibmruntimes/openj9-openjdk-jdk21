@@ -50,6 +50,7 @@ import javax.crypto.spec.SecretKeySpec;
 
 import jdk.crypto.jniprovider.NativeCrypto;
 
+import sun.security.util.KeyUtil;
 import sun.security.x509.X509Key;
 
 public class NativeXDHKeyAgreement extends KeyAgreementSpi {
@@ -277,8 +278,9 @@ public class NativeXDHKeyAgreement extends KeyAgreementSpi {
             throw new NoSuchAlgorithmException("Algorithm must not be null");
         }
 
-        if (!(algorithm.equals("TlsPremasterSecret"))) {
-            throw new NoSuchAlgorithmException("Only supported for algorithm TlsPremasterSecret");
+        if (!KeyUtil.isSupportedKeyAgreementOutputAlgorithm(algorithm)) {
+            throw new NoSuchAlgorithmException(
+                    "Unsupported secret key algorithm: " + algorithm);
         }
         byte[] bytes = engineGenerateSecret();
         try {
