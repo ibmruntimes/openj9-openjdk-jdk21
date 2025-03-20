@@ -421,6 +421,11 @@ public final class KeyUtil {
         }
     }
 
+    public static boolean isSupportedKeyAgreementOutputAlgorithm(String alg) {
+        return alg.equalsIgnoreCase("TlsPremasterSecret")
+                || alg.equalsIgnoreCase("Generic");
+    }
+
     // destroy secret keys in a best-effort way
     public static void destroySecretKeys(SecretKey... keys) {
         for (SecretKey k : keys) {
