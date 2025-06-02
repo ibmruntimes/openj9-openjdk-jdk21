@@ -810,7 +810,6 @@ sun/security/pkcs12/StorePasswordTest.java https://github.com/eclipse-openj9/ope
 sun/security/pkcs12/StoreSecretKeyTest.java https://github.com/eclipse-openj9/openj9/issues/20343 generic-all
 sun/security/pkcs12/StoreTrustedCertTest.java https://github.com/eclipse-openj9/openj9/issues/20343 generic-all
 sun/security/pkcs12/WrongPBES2.java https://github.com/eclipse-openj9/openj9/issues/20343 generic-all
-sun/security/provider/all/Deterministic.java https://github.com/eclipse-openj9/openj9/issues/20343 generic-all
 sun/security/provider/DSA/SecureRandomReset.java https://github.com/eclipse-openj9/openj9/issues/20343 generic-all
 sun/security/provider/DSA/SupportedDSAParamGen.java https://github.com/eclipse-openj9/openj9/issues/20343 generic-all
 sun/security/provider/DSA/SupportedDSAParamGenLongKey.java https://github.com/eclipse-openj9/openj9/issues/20343 generic-all
