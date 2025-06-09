@@ -428,7 +428,6 @@ sun/security/krb5/ktab/BufferBoundary.java https://github.com/eclipse-openj9/ope
 sun/security/krb5/ktab/FileKeyTab.java https://github.com/eclipse-openj9/openj9/issues/20978 generic-all
 sun/security/krb5/ktab/KeyTabIndex.java https://github.com/eclipse-openj9/openj9/issues/20978 generic-all
 sun/security/krb5/runNameEquals.sh https://github.com/eclipse-openj9/openj9/issues/20978 generic-all
-sun/security/provider/all/Deterministic.java https://github.com/eclipse-openj9/openj9/issues/20978 generic-all
 #
 # Exclude tests list from extended.openjdk
 #
