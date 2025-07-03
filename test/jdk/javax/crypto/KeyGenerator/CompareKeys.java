@@ -21,6 +21,12 @@
  * questions.
  */
 
+/*
+ * ===========================================================================
+ * (c) Copyright IBM Corp. 2025, 2025 All Rights Reserved
+ * ===========================================================================
+ */
+
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import java.security.Key;
@@ -126,6 +132,7 @@ public class CompareKeys {
                 // algorithms like RSA.
                 if (s.getType().contains(type)
                         && !((s.getAlgorithm().startsWith("SunTls"))
+                        || s.getAlgorithm().startsWith("kda-hkdf-with-")
                         || s.getProvider().getName().equals("SunMSCAPI"))) {
                     kgs.add(new KeygenAlgo(s.getAlgorithm(), s.getProvider()));
                 }
