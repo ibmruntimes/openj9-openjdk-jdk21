@@ -33,5 +33,6 @@ javax/crypto/KeyGenerator/CompareKeys.java https://github.ibm.com/runtimes/jit-c
 sun/security/ec/ed/TestEdDSA.java https://github.com/ibmruntimes/openj9-openjdk-jdk/issues/994 generic-all
 sun/security/jca/PreferredProviderNegativeTest.java https://github.com/ibmruntimes/openj9-openjdk-jdk/issues/994 generic-all
 sun/security/krb5/auto/principalProperty/PrincipalSystemPropTest.java https://github.com/eclipse-openj9/openj9/issues/22242 generic-all
+sun/security/provider/all/Deterministic.java https://github.com/eclipse-openj9/openj9/issues/22242 generic-all
 sun/security/provider/DSA/TestMaxLengthDER.java https://github.com/eclipse-openj9/openj9/issues/22242 generic-all
 sun/security/util/Debug/DebugOptions.java https://github.com/eclipse-openj9/openj9/issues/22242 generic-all
