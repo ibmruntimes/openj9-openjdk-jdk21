@@ -182,7 +182,7 @@ java/security/KeyRep/Serial.java https://github.com/eclipse-openj9/openj9/issues
 java/security/KeyRep/SerialDSAPubKey.java https://github.com/eclipse-openj9/openj9/issues/20978 generic-all
 java/security/KeyRep/SerialOld.java https://github.com/eclipse-openj9/openj9/issues/20978 generic-all
 java/security/KeyStore/CheckInputStream.java https://github.com/eclipse-openj9/openj9/issues/20978 generic-all
-java/security/KeyStore/CheckMacOSKeyChainTrust.java https://github.com/eclipse-openj9/openj9/issues/20343 mac-aarch64, mac-x64
+java/security/KeyStore/CheckMacOSKeyChainTrust.java https://github.com/eclipse-openj9/openj9/issues/20343 generic-all
 java/security/KeyStore/EntryMethods.java https://github.com/eclipse-openj9/openj9/issues/20978 generic-all
 java/security/KeyStore/KeyStoreBuilder.java https://github.com/eclipse-openj9/openj9/issues/20978 generic-all
 java/security/KeyStore/OneProbeOneNot.java https://github.com/eclipse-openj9/openj9/issues/20978 generic-all
@@ -836,6 +836,7 @@ sun/security/ssl/ProtocolVersion/HttpsProtocols.java https://github.com/eclipse-
 sun/security/ssl/SignatureScheme/DisableSignatureSchemePerScopeDTLS12.java https://github.com/eclipse-openj9/openj9/issues/20978 generic-all
 sun/security/ssl/SignatureScheme/DisableSignatureSchemePerScopeTLS12.java https://github.com/eclipse-openj9/openj9/issues/20978 generic-all
 sun/security/ssl/SignatureScheme/DisableSignatureSchemePerScopeTLS13.java https://github.com/eclipse-openj9/openj9/issues/20978 generic-all
+sun/security/ssl/SignatureScheme/MD5NotAllowedInTLS13CertificateSignature.java https://github.com/eclipse-openj9/openj9/issues/20978 generic-all
 sun/security/ssl/SignatureScheme/MixingTLSUsageConstraintsWithNonTLS.java https://github.com/eclipse-openj9/openj9/issues/20978 generic-all
 sun/security/ssl/SSLCipher/ReadOnlyEngine.java https://github.com/eclipse-openj9/openj9/issues/20978 generic-all
 sun/security/ssl/SSLContextImpl/CustomizedCipherSuites.java https://github.com/eclipse-openj9/openj9/issues/20978 generic-all
@@ -890,6 +891,7 @@ sun/security/ssl/SSLSocketImpl/InvalidateServerSessionRenegotiate.java https://g
 sun/security/ssl/SSLSocketImpl/LargePacketAfterHandshakeTest.java https://github.com/eclipse-openj9/openj9/issues/20978 generic-all
 sun/security/ssl/SSLSocketImpl/NewSocketMethods.java https://github.com/eclipse-openj9/openj9/issues/20978 generic-all
 sun/security/ssl/SSLSocketImpl/NoImpactServerRenego.java https://github.com/eclipse-openj9/openj9/issues/20978 generic-all
+sun/security/ssl/SSLSocketImpl/NonAutoClose.java https://github.com/eclipse-openj9/openj9/issues/20978 generic-all
 sun/security/ssl/SSLSocketImpl/NotifyHandshakeTest.sh https://github.com/eclipse-openj9/openj9/issues/20978 generic-all
 sun/security/ssl/SSLSocketImpl/RejectClientRenego.java https://github.com/eclipse-openj9/openj9/issues/20978 generic-all
 sun/security/ssl/SSLSocketImpl/ReuseAddr.java https://github.com/eclipse-openj9/openj9/issues/20978 generic-all
