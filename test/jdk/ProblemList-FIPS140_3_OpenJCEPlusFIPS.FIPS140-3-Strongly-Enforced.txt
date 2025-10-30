@@ -99,6 +99,9 @@ com/sun/crypto/provider/Cipher/PBE/PBESealedObject.java https://github.com/eclip
 com/sun/crypto/provider/Cipher/PBE/PBKDF2Translate.java https://github.com/eclipse-openj9/openj9/issues/20343 generic-all
 com/sun/crypto/provider/Cipher/PBE/PBMacBuffer.java https://github.com/eclipse-openj9/openj9/issues/20343 generic-all
 com/sun/crypto/provider/Cipher/PBE/PBMacDoFinalVsUpdate.java https://github.com/eclipse-openj9/openj9/issues/20343 generic-all
+com/sun/crypto/provider/Cipher/PBE/PKCS12Cipher.java https://github.com/eclipse-openj9/openj9/issues/20343 generic-all
+com/sun/crypto/provider/Cipher/PBE/PKCS12CipherKAT.java https://github.com/eclipse-openj9/openj9/issues/20343 generic-all
+com/sun/crypto/provider/Cipher/PBE/PKCS12Oid.java https://github.com/eclipse-openj9/openj9/issues/20343 generic-all
 com/sun/crypto/provider/Cipher/PBE/TestCipherKeyWrapperPBEKey.java https://github.com/eclipse-openj9/openj9/issues/20343 generic-all
 com/sun/crypto/provider/Cipher/PBE/TestCipherPBE.java https://github.com/eclipse-openj9/openj9/issues/20343 generic-all
 com/sun/crypto/provider/Cipher/PBE/TestCipherPBECons.java https://github.com/eclipse-openj9/openj9/issues/20343 generic-all
