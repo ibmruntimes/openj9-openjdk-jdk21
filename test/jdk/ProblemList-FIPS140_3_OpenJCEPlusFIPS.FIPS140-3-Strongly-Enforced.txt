@@ -99,6 +99,9 @@ com/sun/crypto/provider/Cipher/PBE/PBESealedObject.java https://github.com/eclip
 com/sun/crypto/provider/Cipher/PBE/PBKDF2Translate.java https://github.com/eclipse-openj9/openj9/issues/20343 generic-all
 com/sun/crypto/provider/Cipher/PBE/PBMacBuffer.java https://github.com/eclipse-openj9/openj9/issues/20343 generic-all
 com/sun/crypto/provider/Cipher/PBE/PBMacDoFinalVsUpdate.java https://github.com/eclipse-openj9/openj9/issues/20343 generic-all
+com/sun/crypto/provider/Cipher/PBE/PKCS12Cipher.java https://github.com/eclipse-openj9/openj9/issues/20343 generic-all
+com/sun/crypto/provider/Cipher/PBE/PKCS12CipherKAT.java https://github.com/eclipse-openj9/openj9/issues/20343 generic-all
+com/sun/crypto/provider/Cipher/PBE/PKCS12Oid.java https://github.com/eclipse-openj9/openj9/issues/20343 generic-all
 com/sun/crypto/provider/Cipher/PBE/TestCipherKeyWrapperPBEKey.java https://github.com/eclipse-openj9/openj9/issues/20343 generic-all
 com/sun/crypto/provider/Cipher/PBE/TestCipherPBE.java https://github.com/eclipse-openj9/openj9/issues/20343 generic-all
 com/sun/crypto/provider/Cipher/PBE/TestCipherPBECons.java https://github.com/eclipse-openj9/openj9/issues/20343 generic-all
@@ -501,6 +504,9 @@ javax/xml/crypto/dsig/SecureValidationSystemProperty.java#id1 https://github.com
 javax/xml/crypto/dsig/SecurityManager/XMLDSigWithSecMgr.java https://github.com/eclipse-openj9/openj9/issues/20343 generic-all
 javax/xml/crypto/dsig/TransformService/NullParent.java https://github.com/eclipse-openj9/openj9/issues/20343 generic-all
 javax/xml/crypto/dsig/ValidationTests.java https://github.com/eclipse-openj9/openj9/issues/20343 generic-all
+jdk/dynalink/BeanLinkerTest.java https://github.com/eclipse-openj9/openj9/issues/22796 generic-all
+jdk/dynalink/TrustedDynamicLinkerFactoryTest.java https://github.com/eclipse-openj9/openj9/issues/22796 generic-all
+jdk/dynalink/UntrustedDynamicLinkerFactoryTest.java https://github.com/eclipse-openj9/openj9/issues/22796 generic-all
 jdk/internal/jline/JLineConsoleProviderTest.java https://github.com/eclipse-openj9/openj9/issues/20343 generic-all
 jdk/internal/jline/LazyJdkConsoleProvider.java https://github.com/eclipse-openj9/openj9/issues/20343 generic-all
 jdk/internal/jline/RedirectedStdOut.java https://github.com/eclipse-openj9/openj9/issues/20343 generic-all
@@ -628,6 +634,7 @@ sun/security/krb5/ktab/BufferBoundary.java https://github.com/eclipse-openj9/ope
 sun/security/krb5/ktab/FileKeyTab.java https://github.com/eclipse-openj9/openj9/issues/20343 generic-all
 sun/security/krb5/ktab/KeyTabIndex.java https://github.com/eclipse-openj9/openj9/issues/20343 generic-all
 sun/security/krb5/RFC396xTest.java https://github.com/eclipse-openj9/openj9/issues/20343 generic-all
+sun/security/mscapi/AccessKeyStore.java https://github.com/eclipse-openj9/openj9/issues/22796 generic-all
 sun/security/mscapi/AllTypes.java https://github.com/eclipse-openj9/openj9/issues/20343 generic-all
 sun/security/mscapi/DupAlias.java https://github.com/eclipse-openj9/openj9/issues/20343 generic-all
 sun/security/mscapi/EncodingMutability.java https://github.com/eclipse-openj9/openj9/issues/20343 generic-all
