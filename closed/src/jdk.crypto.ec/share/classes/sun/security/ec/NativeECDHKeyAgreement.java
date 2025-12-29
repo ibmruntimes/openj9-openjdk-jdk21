@@ -25,7 +25,7 @@
 
 /*
  * ===========================================================================
- * (c) Copyright IBM Corp. 2022, 2024 All Rights Reserved
+ * (c) Copyright IBM Corp. 2022, 2026 All Rights Reserved
  * ===========================================================================
  */
 
@@ -45,6 +45,7 @@ import java.security.interfaces.ECPublicKey;
 import java.security.spec.AlgorithmParameterSpec;
 import java.security.spec.ECParameterSpec;
 import java.security.spec.EllipticCurve;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -347,7 +348,12 @@ public final class NativeECDHKeyAgreement extends KeyAgreementSpi {
             throw new NoSuchAlgorithmException
                 ("Only supported for algorithm TlsPremasterSecret");
         }
-        return new SecretKeySpec(engineGenerateSecret(), "TlsPremasterSecret");
+        byte[] bytes = engineGenerateSecret();
+        try {
+            return new SecretKeySpec(bytes, algorithm);
+        } finally {
+            Arrays.fill(bytes, (byte)0);
+        }
     }
 
     /**
