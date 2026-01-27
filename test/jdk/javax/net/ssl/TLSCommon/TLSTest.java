@@ -486,11 +486,9 @@ public class TLSTest {
             //
             // Private key.
             //
-            "-----BEGIN PRIVATE KEY-----\n"
-            + "MGICAQAwFAYHKoZIzj0CAQYJKyQDAwIIAQENBEcwRQIBAQRAgPx92Cu2UnmeC/NG\n"
+            "MGICAQAwFAYHKoZIzj0CAQYJKyQDAwIIAQENBEcwRQIBAQRAgPx92Cu2UnmeC/NG\n"
             + "KdwrYso1y3MHfY8UbcvuC/POxDqvrYsaSqBBWq8uSFlgRAwFXhdMJDzF9jGbaw79\n"
-            + "gNzowQ==\n"
-            + "-----END PRIVATE KEY-----"
+            + "gNzowQ=="
         ),
         rsa_pss_pss_sha256(
                 "RSASSA-PSS",
