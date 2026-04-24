@@ -147,9 +147,7 @@ public final class StrictMath {
      * @param   a   an angle, in radians.
      * @return  the sine of the argument.
      */
-    public static double sin(double a) {
-        return FdLibm.Sin.compute(a);
-    }
+    public static native double sin(double a);
 
     /**
      * Returns the trigonometric cosine of an angle. Special cases:
@@ -161,9 +159,7 @@ public final class StrictMath {
      * @param   a   an angle, in radians.
      * @return  the cosine of the argument.
      */
-    public static double cos(double a) {
-        return FdLibm.Cos.compute(a);
-    }
+    public static native double cos(double a);
 
     /**
      * Returns the trigonometric tangent of an angle. Special cases:
@@ -175,9 +171,7 @@ public final class StrictMath {
      * @param   a   an angle, in radians.
      * @return  the tangent of the argument.
      */
-    public static double tan(double a) {
-        return FdLibm.Tan.compute(a);
-    }
+    public static native double tan(double a);
 
     /**
      * Returns the arc sine of a value; the returned angle is in the
@@ -190,9 +184,7 @@ public final class StrictMath {
      * @param   a   the value whose arc sine is to be returned.
      * @return  the arc sine of the argument.
      */
-    public static double asin(double a) {
-        return FdLibm.Asin.compute(a);
-    }
+    public static native double asin(double a);
 
     /**
      * Returns the arc cosine of a value; the returned angle is in the
@@ -205,9 +197,7 @@ public final class StrictMath {
      * @param   a   the value whose arc cosine is to be returned.
      * @return  the arc cosine of the argument.
      */
-    public static double acos(double a) {
-        return FdLibm.Acos.compute(a);
-    }
+    public static native double acos(double a);
 
     /**
      * Returns the arc tangent of a value; the returned angle is in the
@@ -223,9 +213,7 @@ public final class StrictMath {
      * @param   a   the value whose arc tangent is to be returned.
      * @return  the arc tangent of the argument.
      */
-    public static double atan(double a) {
-        return FdLibm.Atan.compute(a);
-    }
+    public static native double atan(double a);
 
     /**
      * Converts an angle measured in degrees to an approximately
@@ -291,9 +279,7 @@ public final class StrictMath {
      * @return  the value ln&nbsp;{@code a}, the natural logarithm of
      *          {@code a}.
      */
-    public static double log(double a) {
-        return FdLibm.Log.compute(a);
-    }
+    public static native double log(double a);
 
     /**
      * Returns the base 10 logarithm of a {@code double} value.
@@ -315,9 +301,7 @@ public final class StrictMath {
      * @return  the base 10 logarithm of  {@code a}.
      * @since 1.5
      */
-    public static double log10(double a) {
-        return FdLibm.Log10.compute(a);
-    }
+    public static native double log10(double a);
 
     /**
      * Returns the correctly rounded positive square root of a
@@ -336,9 +320,7 @@ public final class StrictMath {
      * @return  the positive square root of {@code a}.
      */
     @IntrinsicCandidate
-    public static double sqrt(double a) {
-        return FdLibm.Sqrt.compute(a);
-    }
+    public static native double sqrt(double a);
 
     /**
      * Returns the cube root of a {@code double} value.  For
@@ -389,9 +371,7 @@ public final class StrictMath {
      * @return  the remainder when {@code f1} is divided by
      *          {@code f2}.
      */
-    public static double IEEEremainder(double f1, double f2) {
-        return FdLibm.IEEEremainder.compute(f1, f2);
-    }
+    public static native double IEEEremainder(double f1, double f2);
 
     /**
      * Returns the smallest (closest to negative infinity)
@@ -577,9 +557,7 @@ public final class StrictMath {
      *          in polar coordinates that corresponds to the point
      *          (<i>x</i>,&nbsp;<i>y</i>) in Cartesian coordinates.
      */
-    public static double atan2(double y, double x) {
-        return FdLibm.Atan2.compute(y, x);
-    }
+    public static native double atan2(double y, double x);
 
     /**
      * Returns the value of the first argument raised to the power of the
@@ -2113,9 +2091,7 @@ public final class StrictMath {
      * @return  The hyperbolic sine of {@code x}.
      * @since 1.5
      */
-    public static double sinh(double x) {
-        return FdLibm.Sinh.compute(x);
-    }
+    public static native double sinh(double x);
 
     /**
      * Returns the hyperbolic cosine of a {@code double} value.
@@ -2139,9 +2115,7 @@ public final class StrictMath {
      * @return  The hyperbolic cosine of {@code x}.
      * @since 1.5
      */
-    public static double cosh(double x) {
-        return FdLibm.Cosh.compute(x);
-    }
+    public static native double cosh(double x);
 
     /**
      * Returns the hyperbolic tangent of a {@code double} value.
@@ -2172,9 +2146,7 @@ public final class StrictMath {
      * @return  The hyperbolic tangent of {@code x}.
      * @since 1.5
      */
-    public static double tanh(double x) {
-        return FdLibm.Tanh.compute(x);
-    }
+    public static native double tanh(double x);
 
     /**
      * Returns sqrt(<i>x</i><sup>2</sup>&nbsp;+<i>y</i><sup>2</sup>)
@@ -2228,9 +2200,7 @@ public final class StrictMath {
      * @return  the value <i>e</i><sup>{@code x}</sup>&nbsp;-&nbsp;1.
      * @since 1.5
      */
-    public static double expm1(double x) {
-        return FdLibm.Expm1.compute(x);
-    }
+    public static native double expm1(double x);
 
     /**
      * Returns the natural logarithm of the sum of the argument and 1.
@@ -2261,9 +2231,7 @@ public final class StrictMath {
      * log of {@code x}&nbsp;+&nbsp;1
      * @since 1.5
      */
-    public static double log1p(double x) {
-        return FdLibm.Log1p.compute(x);
-    }
+    public static native double log1p(double x);
 
     /**
      * Returns the first floating-point argument with the sign of the
