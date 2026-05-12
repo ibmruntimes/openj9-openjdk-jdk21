@@ -23,7 +23,7 @@
 # questions.
 #
 # ===========================================================================
-# (c) Copyright IBM Corp. 2019, 2021 All Rights Reserved
+# (c) Copyright IBM Corp. 2019, 2026 All Rights Reserved
 # ===========================================================================
 
 include JdkNativeCompilation.gmk
@@ -154,6 +154,7 @@ define SetupBuildLauncherBody
           $$(shell $(FIND) $(SUPPORT_OUTPUTDIR)/modules_libs/java.base -name "*.a") \
           $(SUPPORT_OUTPUTDIR)/modules_libs/jdk.jdwp.agent/libdt_socket.a \
           $(SUPPORT_OUTPUTDIR)/modules_libs/jdk.jdwp.agent/libjdwp.a \
+          $(SUPPORT_OUTPUTDIR)/native/java.base/$(LIBRARY_PREFIX)fdlibm$(STATIC_LIBRARY_SUFFIX) \
           -framework CoreFoundation \
           -framework Foundation \
           -framework SystemConfiguration \
