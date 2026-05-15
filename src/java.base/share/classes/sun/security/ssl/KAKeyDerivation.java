@@ -143,6 +143,10 @@ public class KAKeyDerivation implements SSLKeyDerivation {
                 earlySecret = hkdf.extract(zeros,
                         new SecretKeySpec(zeros, "TlsPremasterSecret"),
                         "TlsEarlySecret");
+                if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
+                    SSLLogger.finer("No PSK is in use, the KDF uses HMAC " + hashAlg.name
+                            + ", the classname for earlySecret key is " + earlySecret.getClass().getName());
+                }
                 kd = new SSLSecretDerivation(context, earlySecret);
             }
 
@@ -169,8 +173,12 @@ public class KAKeyDerivation implements SSLKeyDerivation {
             } else {
                 ikm = sharedSecret;
             }
-
-            return hkdf.extract(saltSecret, ikm, label);
+            SecretKey results = hkdf.extract(saltSecret, ikm, label);
+            if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
+                SSLLogger.finer("derive handshake secret, the KDF uses HMAC " + hashAlg.name
+                        + ", the classname for sharedSecret key is " + results.getClass().getName());
+            }
+            return results;
         } finally {
             KeyUtil.destroySecretKeys(earlySecret, saltSecret);
             if (ikm != null && ikm != sharedSecret) {
