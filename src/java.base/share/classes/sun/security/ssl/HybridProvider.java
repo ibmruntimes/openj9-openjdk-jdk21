@@ -25,6 +25,8 @@
 
 package sun.security.ssl;
 
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.security.Provider;
 import java.security.NoSuchAlgorithmException;
 import java.util.List;
@@ -47,60 +49,64 @@ public class HybridProvider {
         @java.io.Serial
         private static final long serialVersionUID = 0L;
 
+        @SuppressWarnings("removal")
         ProviderImpl() {
             super("HybridAndDHAsKEM", PROVIDER_VER,
                     "Hybrid and DHAsKEM provider");
-            put("KEM.DH", DHasKEM.class.getName());
+            AccessController.doPrivileged((PrivilegedAction<Void>) () -> {
+                put("KEM.DH", DHasKEM.class.getName());
 
-            // Hybrid KeyPairGenerator/KeyFactory/KEM
+                // Hybrid KeyPairGenerator/KeyFactory/KEM
 
-            // The order of shares in the concatenation for group name
-            // X25519MLKEM768 has been reversed as per the current
-            // draft RFC.
-            var attrs = Map.of("name", "X25519MLKEM768", "left", "ML-KEM-768",
-                    "right", "X25519");
-            putService(new HybridService(this, "KeyPairGenerator",
-                    "X25519MLKEM768",
-                    "sun.security.ssl.Hybrid$KeyPairGeneratorImpl",
-                    null, attrs));
-            putService(new HybridService(this, "KEM",
-                    "X25519MLKEM768",
-                    "sun.security.ssl.Hybrid$KEMImpl",
-                    null, attrs));
-            putService(new HybridService(this, "KeyFactory",
-                    "X25519MLKEM768",
-                    "sun.security.ssl.Hybrid$KeyFactoryImpl",
-                    null, attrs));
+                // The order of shares in the concatenation for group name
+                // X25519MLKEM768 has been reversed as per the current
+                // draft RFC.
+                var attrs = Map.of("name", "X25519MLKEM768", "left", "ML-KEM-768",
+                        "right", "X25519");
+                putService(new HybridService(this, "KeyPairGenerator",
+                        "X25519MLKEM768",
+                        "sun.security.ssl.Hybrid$KeyPairGeneratorImpl",
+                        null, attrs));
+                putService(new HybridService(this, "KEM",
+                        "X25519MLKEM768",
+                        "sun.security.ssl.Hybrid$KEMImpl",
+                        null, attrs));
+                putService(new HybridService(this, "KeyFactory",
+                        "X25519MLKEM768",
+                        "sun.security.ssl.Hybrid$KeyFactoryImpl",
+                        null, attrs));
 
-            attrs = Map.of("name", "SecP256r1MLKEM768", "left", "secp256r1",
-                    "right", "ML-KEM-768");
-            putService(new HybridService(this, "KeyPairGenerator",
-                    "SecP256r1MLKEM768",
-                    "sun.security.ssl.Hybrid$KeyPairGeneratorImpl",
-                    null, attrs));
-            putService(new HybridService(this, "KEM",
-                    "SecP256r1MLKEM768",
-                    "sun.security.ssl.Hybrid$KEMImpl",
-                    null, attrs));
-            putService(new HybridService(this, "KeyFactory",
-                    "SecP256r1MLKEM768",
-                    "sun.security.ssl.Hybrid$KeyFactoryImpl",
-                    null, attrs));
+                attrs = Map.of("name", "SecP256r1MLKEM768", "left", "secp256r1",
+                        "right", "ML-KEM-768");
+                putService(new HybridService(this, "KeyPairGenerator",
+                        "SecP256r1MLKEM768",
+                        "sun.security.ssl.Hybrid$KeyPairGeneratorImpl",
+                        null, attrs));
+                putService(new HybridService(this, "KEM",
+                        "SecP256r1MLKEM768",
+                        "sun.security.ssl.Hybrid$KEMImpl",
+                        null, attrs));
+                putService(new HybridService(this, "KeyFactory",
+                        "SecP256r1MLKEM768",
+                        "sun.security.ssl.Hybrid$KeyFactoryImpl",
+                        null, attrs));
 
-            attrs = Map.of("name", "SecP384r1MLKEM1024", "left", "secp384r1",
-                    "right", "ML-KEM-1024");
-            putService(new HybridService(this, "KeyPairGenerator",
-                    "SecP384r1MLKEM1024",
-                    "sun.security.ssl.Hybrid$KeyPairGeneratorImpl",
-                    null, attrs));
-            putService(new HybridService(this, "KEM",
-                    "SecP384r1MLKEM1024",
-                    "sun.security.ssl.Hybrid$KEMImpl",
-                    null, attrs));
-            putService(new HybridService(this, "KeyFactory",
-                    "SecP384r1MLKEM1024",
-                    "sun.security.ssl.Hybrid$KeyFactoryImpl",
-                    null, attrs));
+                attrs = Map.of("name", "SecP384r1MLKEM1024", "left", "secp384r1",
+                        "right", "ML-KEM-1024");
+                putService(new HybridService(this, "KeyPairGenerator",
+                        "SecP384r1MLKEM1024",
+                        "sun.security.ssl.Hybrid$KeyPairGeneratorImpl",
+                        null, attrs));
+                putService(new HybridService(this, "KEM",
+                        "SecP384r1MLKEM1024",
+                        "sun.security.ssl.Hybrid$KEMImpl",
+                        null, attrs));
+                putService(new HybridService(this, "KeyFactory",
+                        "SecP384r1MLKEM1024",
+                        "sun.security.ssl.Hybrid$KeyFactoryImpl",
+                        null, attrs));
+                return null;
+            });
         }
     }
 

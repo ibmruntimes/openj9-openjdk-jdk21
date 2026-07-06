@@ -26,6 +26,7 @@ package sun.security.ssl;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
+import java.security.InvalidKeyException;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.PrivateKey;
@@ -138,12 +139,20 @@ final class KEMKeyExchange {
 
         @Override
         public byte[] encode() {
-            if (publicKey instanceof X509Key xk) {
-                return xk.getKeyAsBytes();
-            } else if (publicKey instanceof Hybrid.PublicKeyImpl hk) {
+            if (publicKey instanceof Hybrid.PublicKeyImpl hk) {
                 return hk.getEncoded();
             }
-            throw new ProviderException("Unsupported key type: " + publicKey);
+            if (!"X.509".equalsIgnoreCase(publicKey.getFormat())) {
+                throw new ProviderException("Invalid public key encoding " +
+                        "format");
+            }
+            var xk = new X509Key();
+            try {
+                xk.decode(publicKey.getEncoded());
+            } catch (InvalidKeyException e) {
+                throw new ProviderException("Invalid public key encoding", e);
+            }
+            return xk.getKeyAsBytes();
         }
 
         // Package-private
