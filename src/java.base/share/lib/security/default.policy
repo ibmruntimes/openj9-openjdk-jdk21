@@ -285,9 +285,9 @@ grant codeBase "jrt:/openjceplus" {
     permission java.io.FilePermission "<<ALL FILES>>", "read";
     permission java.lang.RuntimePermission "accessClassInPackage.sun.security.util";
     permission java.lang.RuntimePermission "loadLibrary.*";
-    permission java.security.SecurityPermission "clearProviderProperties.OpenJCEPlus*";
-    permission java.security.SecurityPermission "putProviderProperty.OpenJCEPlus*";
-    permission java.security.SecurityPermission "removeProviderProperty.OpenJCEPlus*";
+    permission java.security.SecurityPermission "clearProviderProperties.*";
+    permission java.security.SecurityPermission "putProviderProperty.*";
+    permission java.security.SecurityPermission "removeProviderProperty.*";
     permission java.util.PropertyPermission "*", "read";
 };
 
