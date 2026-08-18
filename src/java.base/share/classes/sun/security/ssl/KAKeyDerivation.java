@@ -31,15 +31,11 @@
 
 package sun.security.ssl;
 
-import sun.security.util.RawKeySpec;
-
-import javax.crypto.DecapsulateException;
 import javax.crypto.KEM;
 import javax.crypto.KeyAgreement;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import javax.net.ssl.SSLHandshakeException;
-
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.security.KeyFactory;
@@ -49,6 +45,7 @@ import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.spec.AlgorithmParameterSpec;
 import sun.security.util.KeyUtil;
+import sun.security.util.RawKeySpec;
 
 /**
  * A common class for creating various KeyDerivation types.
