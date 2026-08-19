@@ -170,12 +170,12 @@ public class KAKeyDerivation implements SSLKeyDerivation {
             } else {
                 ikm = sharedSecret;
             }
-            SecretKey results = hkdf.extract(saltSecret, ikm, label);
+            SecretKey result = hkdf.extract(saltSecret, ikm, label);
             if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
                 SSLLogger.finer("derive handshake secret, the KDF uses HMAC " + hashAlg.name
-                        + ", the classname for sharedSecret key is " + results.getClass().getName());
+                        + ", the classname for result key is " + result.getClass().getName());
             }
-            return results;
+            return result;
         } finally {
             KeyUtil.destroySecretKeys(earlySecret, saltSecret);
             if (ikm != null && ikm != sharedSecret) {
