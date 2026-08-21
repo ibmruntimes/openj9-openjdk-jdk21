@@ -92,9 +92,9 @@ import sun.security.util.*;
  */
 abstract class PBES2Parameters extends AlgorithmParametersSpi {
 
-    private static ObjectIdentifier pkcs5PBKDF2_OID =
-            ObjectIdentifier.of(KnownOIDs.PBKDF2WithHmacSHA1);
-    private static ObjectIdentifier pkcs5PBES2_OID =
+    private static final ObjectIdentifier pkcs5PBKDF2_OID =
+            ObjectIdentifier.of(KnownOIDs.PBKDF2);
+    private static final ObjectIdentifier pkcs5PBES2_OID =
             ObjectIdentifier.of(KnownOIDs.PBES2);
     private static ObjectIdentifier aes128CBC_OID =
             ObjectIdentifier.of(KnownOIDs.AES_128$CBC$NoPadding);
@@ -210,8 +210,6 @@ abstract class PBES2Parameters extends AlgorithmParametersSpi {
     protected void engineInit(byte[] encoded)
         throws IOException
     {
-        String kdfAlgo = null;
-        String cipherAlgo = null;
 
         DerValue pBES2_params = new DerValue(encoded);
         if (pBES2_params.tag != DerValue.tag_Sequence) {
@@ -228,19 +226,32 @@ abstract class PBES2Parameters extends AlgorithmParametersSpi {
         // next DerValue as the real PBES2-params.
         if (kdf.getTag() == DerValue.tag_ObjectId) {
             pBES2_params = pBES2_params.data.getDerValue();
+            if (pBES2_params.tag != DerValue.tag_Sequence) {
+                throw new IOException("PBE parameter parsing error: "
+                    + "not an ASN.1 SEQUENCE tag");
+            }
             kdf = pBES2_params.data.getDerValue();
         }
 
-        kdfAlgo = parseKDF(kdf);
-
-        if (pBES2_params.tag != DerValue.tag_Sequence) {
+        if (!pkcs5PBKDF2_OID.equals(kdf.data.getOID())) {
+            throw new IOException("PBE parameter parsing error: "
+                + "expecting the object identifier for PBKDF2");
+        }
+        if (kdf.tag != DerValue.tag_Sequence) {
             throw new IOException("PBE parameter parsing error: "
                 + "not an ASN.1 SEQUENCE tag");
         }
-        cipherAlgo = parseES(pBES2_params.data.getDerValue());
+        DerValue pBKDF2_params = kdf.data.getDerValue();
 
-        this.pbes2AlgorithmName = new StringBuilder().append("PBEWith")
-            .append(kdfAlgo).append("And").append(cipherAlgo).toString();
+        var kdfParams = new PBKDF2Parameters(pBKDF2_params);
+        String kdfAlgo = kdfParams.getPrfAlgo();
+        salt = kdfParams.getSalt();
+        iCount = kdfParams.getIterationCount();
+        keysize = kdfParams.getKeyLength();
+
+        String cipherAlgo = parseES(pBES2_params.data.getDerValue());
+
+        this.pbes2AlgorithmName = "PBEWith" + kdfAlgo + "And" + cipherAlgo;
     }
 
     @SuppressWarnings("deprecation")
@@ -352,26 +363,9 @@ abstract class PBES2Parameters extends AlgorithmParametersSpi {
 
         DerOutputStream pBES2_params = new DerOutputStream();
 
-        DerOutputStream keyDerivationFunc = new DerOutputStream();
-        keyDerivationFunc.putOID(pkcs5PBKDF2_OID);
-
-        DerOutputStream pBKDF2_params = new DerOutputStream();
-        pBKDF2_params.putOctetString(salt); // choice: 'specified OCTET STRING'
-        pBKDF2_params.putInteger(iCount);
-
-        if (keysize > 0) {
-            pBKDF2_params.putInteger(keysize / 8); // derived key length (in octets)
-        }
-
-        DerOutputStream prf = new DerOutputStream();
-        // algorithm is id-hmacWith<MD>
-        prf.putOID(kdfAlgo_OID);
-        // parameters is 'NULL'
-        prf.putNull();
-        pBKDF2_params.write(DerValue.tag_Sequence, prf);
-
-        keyDerivationFunc.write(DerValue.tag_Sequence, pBKDF2_params);
-        pBES2_params.write(DerValue.tag_Sequence, keyDerivationFunc);
+        // keysize encoded as octets
+        pBES2_params.writeBytes(PBKDF2Parameters.encode(salt, iCount,
+                keysize/8, kdfAlgo_OID));
 
         DerOutputStream encryptionScheme = new DerOutputStream();
         // algorithm is id-aes128-CBC or id-aes256-CBC
