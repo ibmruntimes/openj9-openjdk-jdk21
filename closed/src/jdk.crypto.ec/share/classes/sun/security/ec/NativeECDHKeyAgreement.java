@@ -61,6 +61,7 @@ import sun.security.ec.point.Point;
 import sun.security.util.ArrayUtil;
 import sun.security.util.CurveDB;
 import sun.security.util.ECUtil;
+import sun.security.util.KeyUtil;
 import sun.security.util.NamedCurve;
 
 /**
@@ -344,9 +345,9 @@ public final class NativeECDHKeyAgreement extends KeyAgreementSpi {
         if (algorithm == null) {
             throw new NoSuchAlgorithmException("Algorithm must not be null");
         }
-        if (!(algorithm.equals("TlsPremasterSecret"))) {
-            throw new NoSuchAlgorithmException
-                ("Only supported for algorithm TlsPremasterSecret");
+        if (!KeyUtil.isSupportedKeyAgreementOutputAlgorithm(algorithm)) {
+            throw new NoSuchAlgorithmException(
+                    "Unsupported secret key algorithm: " + algorithm);
         }
         byte[] bytes = engineGenerateSecret();
         try {
