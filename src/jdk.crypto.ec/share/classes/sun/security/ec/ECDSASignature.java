@@ -30,6 +30,7 @@ import java.nio.ByteBuffer;
 import java.security.*;
 import java.security.interfaces.*;
 import java.security.spec.*;
+import java.util.Arrays;
 import java.util.Optional;
 
 import sun.security.jca.JCAUtil;
@@ -438,7 +439,14 @@ abstract class ECDSASignature extends SignatureSpi {
             random.nextBytes(seedBytes);
             ECDSAOperations.Seed seed = new ECDSAOperations.Seed(seedBytes);
             try {
-                return ops.signDigest(s, digest, seed);
+                // a new allocation for this value, rather than just
+                // returning it, is a trade-off to zero-out the local
+                // value for "s" when necessary
+                byte[] retValue = ops.signDigest(s, digest, seed);
+                if (!(priv instanceof ECPrivateKeyImpl)) {
+                    Arrays.fill(s, (byte)0x00);
+                }
+                return retValue;
             } catch (IntermediateValueException ex) {
                 // try again in the next iteration
             }
