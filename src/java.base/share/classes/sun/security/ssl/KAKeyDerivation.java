@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,6 +31,9 @@
 
 package sun.security.ssl;
 
+import sun.security.util.RawKeySpec;
+
+import javax.crypto.DecapsulateException;
 import javax.crypto.KEM;
 import javax.crypto.KeyAgreement;
 import javax.crypto.SecretKey;
@@ -38,14 +41,14 @@ import javax.crypto.spec.SecretKeySpec;
 import javax.net.ssl.SSLHandshakeException;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
+import java.security.InvalidKeyException;
 import java.security.KeyFactory;
 import java.security.PrivateKey;
 import java.security.Provider;
 import java.security.PublicKey;
-import java.security.SecureRandom;
 import java.security.spec.AlgorithmParameterSpec;
-import sun.security.util.KeyUtil;
-import sun.security.util.RawKeySpec;
+import java.security.SecureRandom;
+import java.util.Arrays;
 
 /**
  * A common class for creating various KeyDerivation types.
@@ -99,14 +102,15 @@ public class KAKeyDerivation implements SSLKeyDerivation {
      */
     private SecretKey t12DeriveKey(String algorithm,
             AlgorithmParameterSpec params) throws IOException {
-        SecretKey preMasterSecret = null;
         try {
             KeyAgreement ka = KeyAgreement.getInstance(algorithmName);
             ka.init(localPrivateKey);
             ka.doPhase(peerPublicKey, true);
-            preMasterSecret = ka.generateSecret("TlsPremasterSecret");
-            SSLMasterKeyDerivation mskd =
-                    SSLMasterKeyDerivation.valueOf(context.negotiatedProtocol);
+            SecretKey preMasterSecret
+                    = ka.generateSecret("TlsPremasterSecret");
+            SSLMasterKeyDerivation mskd
+                    = SSLMasterKeyDerivation.valueOf(
+                            context.negotiatedProtocol);
             if (mskd == null) {
                 // unlikely
                 throw new SSLHandshakeException(
@@ -118,8 +122,6 @@ public class KAKeyDerivation implements SSLKeyDerivation {
             return kd.deriveKey("MasterSecret", params);
         } catch (GeneralSecurityException gse) {
             throw new SSLHandshakeException("Could not generate secret", gse);
-        } finally {
-            KeyUtil.destroySecretKeys(preMasterSecret);
         }
     }
 
@@ -128,19 +130,18 @@ public class KAKeyDerivation implements SSLKeyDerivation {
             throws GeneralSecurityException, IOException {
         SecretKey earlySecret = null;
         SecretKey saltSecret = null;
-        SecretKey ikm = null;
-
         CipherSuite.HashAlg hashAlg = context.negotiatedCipherSuite.hashAlg;
         SSLKeyDerivation kd = context.handshakeKeyDerivation;
         try {
+            HKDF hkdf = new HKDF(hashAlg.name);
             if (kd == null) {   // No PSK is in use.
                 // If PSK is not in use Early Secret will still be
                 // HKDF-Extract(0, 0).
                 byte[] zeros = new byte[hashAlg.hashLength];
-                HKDF hkdf = new HKDF(hashAlg.name);
-                earlySecret = hkdf.extract(zeros,
-                        new SecretKeySpec(zeros, "TlsPremasterSecret"),
-                        "TlsEarlySecret");
+                SecretKeySpec ikm
+                        = new SecretKeySpec(zeros, "TlsPreSharedSecret");
+                earlySecret
+                        = hkdf.extract(zeros, ikm, "TlsEarlySecret");
                 if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
                     SSLLogger.finer("No PSK is in use, the KDF uses HMAC " + hashAlg.name
                             + ", the classname for earlySecret key is " + earlySecret.getClass().getName());
@@ -152,36 +153,31 @@ public class KAKeyDerivation implements SSLKeyDerivation {
             saltSecret = kd.deriveKey("TlsSaltSecret", null);
 
             // derive handshake secret
-            // NOTE: do not reuse the HKDF object for "TlsEarlySecret" for
-            // the handshake secret key derivation (below) as it may not
-            // work with the "sharedSecret" obj.
-            HKDF hkdf = new HKDF(hashAlg.name);
             if (sharedSecret instanceof Hybrid.SecretKeyImpl hsk) {
-                byte[] k1Bytes = hsk.k1().getEncoded();
-                byte[] k2Bytes = hsk.k2().getEncoded();
-                if (k1Bytes == null || k2Bytes == null) {
-                    throw new SSLHandshakeException(
-                            "Hybrid secret key component has no encoded form");
+                // No javax.crypto.KDF. Concatenating the two hybrid
+                // shared secrets for single IKM in HKDF.extract(),
+                // then clearing the temporary copies.
+                byte[] k1 = hsk.k1().getEncoded();
+                byte[] k2 = hsk.k2().getEncoded();
+                byte[] ikm = new byte[k1.length + k2.length];
+                System.arraycopy(k1, 0, ikm, 0, k1.length);
+                System.arraycopy(k2, 0, ikm, k1.length, k2.length);
+                try {
+                    sharedSecret = new SecretKeySpec(ikm, "TlsPremasterSecret");
+                } finally {
+                    Arrays.fill(k1, (byte)0);
+                    Arrays.fill(k2, (byte)0);
+                    Arrays.fill(ikm, (byte)0);
                 }
-                byte[] combined = new byte[k1Bytes.length + k2Bytes.length];
-                System.arraycopy(k1Bytes, 0, combined, 0, k1Bytes.length);
-                System.arraycopy(k2Bytes, 0, combined, k1Bytes.length, k2Bytes.length);
-                ikm = new SecretKeySpec(combined, "TlsPremasterSecret");
-                java.util.Arrays.fill(combined, (byte) 0);
-            } else {
-                ikm = sharedSecret;
             }
-            SecretKey result = hkdf.extract(saltSecret, ikm, label);
+            SecretKey result = hkdf.extract(saltSecret, sharedSecret, label);
             if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
                 SSLLogger.finer("derive handshake secret, the KDF uses HMAC " + hashAlg.name
                         + ", the classname for result key is " + result.getClass().getName());
             }
             return result;
-        } finally {
-            KeyUtil.destroySecretKeys(earlySecret, saltSecret);
-            if (ikm != null && ikm != sharedSecret) {
-                KeyUtil.destroySecretKeys(ikm);
-            }
+        } catch (GeneralSecurityException gse) {
+            throw new SSLHandshakeException("Could not generate secret", gse);
         }
     }
     /**
@@ -201,6 +197,9 @@ public class KAKeyDerivation implements SSLKeyDerivation {
                     "encapsulation");
         }
 
+        // All exceptions thrown during KEM encapsulation are mapped
+        // to TLS fatal alerts:
+        // illegal_parameter alert or internal_error alert.
         try {
             KeyFactory kf = (provider != null) ?
                     KeyFactory.getInstance(algorithmName, provider) :
@@ -217,10 +216,18 @@ public class KAKeyDerivation implements SSLKeyDerivation {
             SecretKey derived = deriveHandshakeSecret(algorithm, sharedSecret);
 
             return new KEM.Encapsulated(derived, enc.encapsulation(), null);
-        } catch (GeneralSecurityException gse) {
-            throw new SSLHandshakeException("Could not generate secret", gse);
-        } finally {
-            KeyUtil.destroySecretKeys(sharedSecret);
+        } catch (IllegalArgumentException | InvalidKeyException e) {
+            // Peer validation failure
+            // ECDH all-zero shared secret (RFC 8446 section 7.4.2),
+            // ML-KEM encapsulation key check failure (FIPS-203 section 7.2)
+            throw context.conContext.fatal(Alert.ILLEGAL_PARAMETER, e);
+        } catch (GeneralSecurityException e) {
+            // Cryptographic failure,
+            // deriveHandshakeSecret failure.
+            throw context.conContext.fatal(Alert.INTERNAL_ERROR, e);
+        } catch (RuntimeException e) {
+            // unexpected provider/runtime failure
+            throw context.conContext.fatal(Alert.INTERNAL_ERROR, e);
         }
     }
 
@@ -228,8 +235,7 @@ public class KAKeyDerivation implements SSLKeyDerivation {
      * Handle the TLSv1.3 objects, which use the HKDF algorithms.
      */
     private SecretKey t13DeriveKey(String type,
-            AlgorithmParameterSpec params)
-            throws IOException {
+            AlgorithmParameterSpec params) throws IOException {
         SecretKey sharedSecret = null;
 
         try {
@@ -237,13 +243,30 @@ public class KAKeyDerivation implements SSLKeyDerivation {
                 // Using KEM: called by the client after receiving the KEM
                 // ciphertext (keyshare) from the server in ServerHello.
                 // The client decapsulates it using its private key.
-                KEM kem = (provider != null)
-                        ? KEM.getInstance(algorithmName, provider)
-                        : KEM.getInstance(algorithmName);
-                var decapsulator = kem.newDecapsulator(localPrivateKey);
-                sharedSecret = decapsulator.decapsulate(
-                        keyshare, 0, decapsulator.secretSize(),
-                        "TlsPremasterSecret");
+
+                // All exceptions thrown during KEM decapsulation are mapped
+                // to TLS fatal alerts:
+                // illegal_parameter alert or internal_error alert.
+                try {
+                    KEM kem = (provider != null)
+                            ? KEM.getInstance(algorithmName, provider)
+                            : KEM.getInstance(algorithmName);
+                    var decapsulator = kem.newDecapsulator(localPrivateKey);
+                    sharedSecret = decapsulator.decapsulate(
+                            keyshare, 0, decapsulator.secretSize(),
+                            "TlsPremasterSecret");
+                } catch (IllegalArgumentException | InvalidKeyException |
+                        DecapsulateException e) {
+                    // Peer validation failure
+                    // ECDH all-zero shared secret (RFC 8446 section 7.4.2)
+                    throw context.conContext.fatal(Alert.ILLEGAL_PARAMETER, e);
+                } catch (GeneralSecurityException e) {
+                    // cryptographic failure
+                    throw context.conContext.fatal(Alert.INTERNAL_ERROR, e);
+                } catch (RuntimeException e) {
+                    // unexpected provider/runtime failure
+                    throw context.conContext.fatal(Alert.INTERNAL_ERROR, e);
+                }
             } else {
                 // Using traditional DH-style Key Agreement
                 KeyAgreement ka = KeyAgreement.getInstance(algorithmName);
@@ -254,9 +277,8 @@ public class KAKeyDerivation implements SSLKeyDerivation {
 
             return deriveHandshakeSecret(type, sharedSecret);
         } catch (GeneralSecurityException gse) {
+            // deriveHandshakeSecret() failure
             throw new SSLHandshakeException("Could not generate secret", gse);
-        } finally {
-            KeyUtil.destroySecretKeys(sharedSecret);
         }
     }
 }

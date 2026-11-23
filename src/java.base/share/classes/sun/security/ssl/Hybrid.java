@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -408,7 +408,7 @@ public class Hybrid {
                 int to, String algorithm) throws DecapsulateException {
             int expectedEncSize = engineEncapsulationSize();
             if (encapsulation.length != expectedEncSize) {
-                throw new DecapsulateException(
+                throw new IllegalArgumentException(
                         "Invalid key encapsulation message length: " +
                         encapsulation.length +
                         ", expected = " + expectedEncSize);
@@ -479,6 +479,11 @@ public class Hybrid {
         }
 
         static byte[] onlyKey(PublicKey key) {
+            if (key instanceof X509Key xk) {
+                return xk.getKeyAsBytes();
+            }
+
+            // Fallback for 3rd-party providers
             if (!"X.509".equalsIgnoreCase(key.getFormat())) {
                 throw new ProviderException("Invalid public key encoding " +
                         "format");

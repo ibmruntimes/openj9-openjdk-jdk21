@@ -85,6 +85,10 @@ public class SSLHandshake {
 
     @Setup(Level.Trial)
     public void init() throws Exception {
+        String[] components = versionAndGroup.split("-", 2);
+        tlsVersion = components[0];
+        namedGroup = components[1];
+
         KeyStore ks = TestCertificates.getKeyStore();
         String[] components = versionAndGroup.split("-", 2);
         tlsVersion = components[0];

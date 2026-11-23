@@ -143,7 +143,9 @@ public class X509Key implements PublicKey, DerEncoder {
     }
 
     public byte[] getKeyAsBytes() {
-        return bitStringKey.toByteArray();
+        // Using 'getKey()` here over `bitStringKey` as the bitStringKey
+        // might not be set yet.
+        return getKey().toByteArray();
     }
 
     /**
